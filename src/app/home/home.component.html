@@ -1,0 +1,90 @@
+<div class="container" [ngClass]="{ 'dark-mode': isDarkMode }">
+  <nav class="navbar">
+    <div class="logo">Bolt Tech</div>
+    <div class="nav-links">
+      <a href="#" class="nav-link">หน้าแรก</a>
+      <a href="#" class="nav-link">เกี่ยวกับ</a>
+      <a href="#" class="nav-link">ผลงาน</a>
+      <a href="#" class="nav-link">ติดต่อ</a>
+      <button class="theme-toggle" (click)="toggleDarkMode()">
+        <span class="material-symbols-outlined">
+          {{ isDarkMode ? 'partly_cloudy_day' : 'partly_cloudy_night' }}
+        </span>
+      </button>
+    </div>
+  </nav>
+
+  <div class="content">
+    <h1>Financial Dashboard</h1>
+    
+    <div class="upload-section">
+      <label for="file-upload" class="upload-label">
+        <span class="material-symbols-outlined">upload_file</span>
+        Upload Financial Data
+      </label>
+      <input 
+        type="file" 
+        id="file-upload" 
+        (change)="onFileSelected($event)" 
+        accept=".csv,.xlsx,.xls"
+        [disabled]="isLoading"
+      >
+    </div>
+
+    <div *ngIf="isLoading" class="loading">
+      <span class="material-symbols-outlined spinning">sync</span>
+      Processing your file...
+    </div>
+
+    <div *ngIf="currentFileId" class="dashboard-grid">
+      <div *ngIf="summary.daily" class="dashboard-card">
+        <h3>Daily Sales</h3>
+        <p class="amount">
+          ฿{{ summary.daily.sales.toLocaleString() }}
+          <span class="growth" [class.positive]="summary.daily.growth > 0">
+            {{ summary.daily.growth > 0 ? '+' : '' }}{{ summary.daily.growth }}%
+          </span>
+        </p>
+      </div>
+      <div *ngIf="summary.monthly" class="dashboard-card">
+        <h3>Monthly Sales</h3>
+        <p class="amount">
+          ฿{{ summary.monthly.sales.toLocaleString() }}
+          <span class="growth" [class.positive]="summary.monthly.growth > 0">
+            {{ summary.monthly.growth > 0 ? '+' : '' }}{{ summary.monthly.growth }}%
+          </span>
+        </p>
+      </div>
+      <div *ngIf="summary.yearly" class="dashboard-card">
+        <h3>Yearly Sales</h3>
+        <p class="amount">
+          ฿{{ summary.yearly.sales.toLocaleString() }}
+          <span class="growth" [class.positive]="summary.yearly.growth > 0">
+            {{ summary.yearly.growth > 0 ? '+' : '' }}{{ summary.yearly.growth }}%
+          </span>
+        </p>
+      </div>
+    </div>
+
+    <div *ngIf="summary.forecast" class="forecast-section">
+      <h2>Sales Forecast</h2>
+      <div class="forecast-grid">
+        <div *ngFor="let sale of summary.forecast.sales; let i = index" class="forecast-card">
+          <h3>{{ summary.forecast.dates[i] }}</h3>
+          <p class="amount">฿{{ sale.toLocaleString() }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="summary.top_products" class="top-products">
+      <h2>Top Products</h2>
+      <div class="products-grid">
+        <div *ngFor="let product of summary.top_products" class="product-card">
+          <h3>{{ product.product }}</h3>
+          <p>Quantity: {{ product.quantity }}</p>
+          <p>Revenue: ฿{{ product.revenue.toLocaleString() }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
