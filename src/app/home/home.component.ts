@@ -2,18 +2,22 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ThemeService } from '../services/theme.service';
 import { AuthService } from '../services/auth.service';
-import { HttpClient, HttpParams, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpParams, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { catchError } from 'rxjs/operators';
+import { throwError } from 'rxjs';
 
+// Response interface for dashboard summary
 interface DashboardSummary {
   daily?: {
     sales: number;
     growth: number;
   };
-  monthly?: {
-    sales: number;
-    growth: number;
-  };
+  monthly_sales?: Array<{
+    Date: string;
+    "Total Sales": number;
+    "Growth Rate (%)": number;
+  }>;
   yearly?: {
     sales: number;
     growth: number;
@@ -29,6 +33,15 @@ interface DashboardSummary {
   };
 }
 
+// Request parameters interface
+interface DashboardParams {
+  file_id: string;                                                           // Required: File ID from upload API
+  report_type?: 'daily' | 'monthly' | 'yearly' | 'top_products' | 'forecast' | 'all'; // Optional: defaults to 'all'
+  product_filter?: string;                                                   // Optional: product name filter
+  forecast_periods?: number;                                                 // Optional: defaults to 3
+  forecast_quantity?: boolean;                                              // Optional: defaults to false
+}
+
 @Component({
   selector: 'app-home',
   standalone: true,
@@ -42,6 +55,13 @@ export class HomeComponent implements OnInit {
   summary: DashboardSummary = {};
   currentFileId: string = '';
 
+  // Default dashboard parameters
+  private defaultParams: Partial<DashboardParams> = {
+    report_type: 'all',
+    forecast_periods: 3,
+    forecast_quantity: false
+  };
+
   constructor(
     private themeService: ThemeService,
     private authService: AuthService,
@@ -54,7 +74,6 @@ export class HomeComponent implements OnInit {
       isDark => this.isDarkMode = isDark
     );
 
-    // Check if user is authenticated
     if (!this.authService.isAuthenticated()) {
       this.router.navigate(['/login']);
       return;
@@ -65,19 +84,57 @@ export class HomeComponent implements OnInit {
     this.themeService.toggleDarkMode();
   }
 
-  fetchDashboardSummary(reportType: string = 'all') {
+  private handleError(error: HttpErrorResponse) {
+    console.error('An error occurred:', error);
+    
+    if (error.status === 401) {
+      this.authService.clearToken();
+      this.router.navigate(['/login']);
+      return throwError(() => new Error('Unauthorized access'));
+    }
+    
+    if (error.status === 0) {
+      return throwError(() => new Error('Network error occurred'));
+    }
+    
+    const message = error.error?.message || 'An unexpected error occurred';
+    return throwError(() => new Error(message));
+  }
+
+  fetchDashboardSummary(customParams: Partial<DashboardParams> = {}) {
+    if (!this.currentFileId) {
+      console.error('No file ID available');
+      return;
+    }
+
     this.isLoading = true;
     
-    let params = new HttpParams()
-      .set('file_id', this.currentFileId)
-      .set('report_type', reportType)
-      .set('forecast_periods', '3')
-      .set('forecast_quantity', 'false');
-    
-    // เช็คว่า product_filter มีค่าหรือไม่ ก่อนเพิ่มเข้าไปใน params
-    const productFilter = 'Bagel'; // หรือดึงค่าจาก UI
-    if (productFilter) {
-      params = params.set('product_filter', productFilter);
+    // Merge default parameters with custom parameters
+    const params: DashboardParams = {
+      file_id: this.currentFileId,
+      ...this.defaultParams,
+      ...customParams
+    };
+
+    // Build query parameters
+    let httpParams = new HttpParams()
+      .set('file_id', params.file_id);
+
+    // Add optional parameters only if they are provided
+    if (params.report_type) {
+      httpParams = httpParams.set('report_type', params.report_type);
+    }
+
+    if (params.product_filter) {
+      httpParams = httpParams.set('product_filter', params.product_filter);
+    }
+
+    if (params.forecast_periods !== undefined) {
+      httpParams = httpParams.set('forecast_periods', params.forecast_periods.toString());
+    }
+
+    if (params.forecast_quantity !== undefined) {
+      httpParams = httpParams.set('forecast_quantity', params.forecast_quantity.toString());
     }
 
     const headers = new HttpHeaders()
@@ -85,25 +142,26 @@ export class HomeComponent implements OnInit {
       .set('Accept', 'application/json')
       .set('Content-Type', 'application/json');
 
-    this.http.get<DashboardSummary>('https://8bae-49-237-17-139.ngrok-free.app/dashboard/summary/', 
+    this.http.get<DashboardSummary>(
+      'https://8bae-49-237-17-139.ngrok-free.app/dashboard/summary/', 
       { 
-        params, 
+        params: httpParams, 
         headers,
+        observe: 'response',
         responseType: 'json'
       }
+    ).pipe(
+      catchError(this.handleError.bind(this))
     ).subscribe({
-      next: (data) => {
-        this.summary = data;
+      next: (response) => {
+        if (response.body) {
+          this.summary = response.body;
+        }
         this.isLoading = false;
       },
       error: (error) => {
-        console.error('Error fetching dashboard summary:', error);
-        if (error.status === 401) {
-          this.router.navigate(['/login']);
-        } else {
-          alert('Error fetching dashboard data. Please try again.');
-        }
         this.isLoading = false;
+        alert(error.message || 'Failed to fetch dashboard data');
       }
     });
   }
@@ -116,27 +174,24 @@ export class HomeComponent implements OnInit {
       formData.append('file', input.files[0]);
       
       const headers = new HttpHeaders()
-        .set('Authorization', `Bearer ${this.authService.getToken()}`)
-        .set('Accept', 'application/json');
+        .set('Authorization', `Bearer ${this.authService.getToken()}`);
 
       this.http.post<{file_id: string}>(
         'https://8bae-49-237-17-139.ngrok-free.app/upload/', 
         formData,
         { headers }
+      ).pipe(
+        catchError(this.handleError.bind(this))
       ).subscribe({
         next: (response) => {
           console.log('File uploaded successfully:', response);
           this.currentFileId = response.file_id;
+          // Call fetchDashboardSummary with default parameters
           this.fetchDashboardSummary();
         },
         error: (error) => {
-          console.error('Error uploading file:', error);
-          if (error.status === 401) {
-            this.router.navigate(['/login']);
-          } else {
-            alert('Error uploading file. Please try again.');
-          }
           this.isLoading = false;
+          alert(error.message || 'Failed to upload file');
         }
       });
     }

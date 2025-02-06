@@ -46,15 +46,17 @@
           </span>
         </p>
       </div>
-      <div *ngIf="summary.monthly" class="dashboard-card">
-        <h3>Monthly Sales</h3>
+      <div *ngIf="summary.monthly_sales" class="dashboard-card">
+      <h3>Monthly Sales</h3>
+      <div *ngFor="let sale of summary.monthly_sales">
         <p class="amount">
-          ฿{{ summary.monthly.sales.toLocaleString() }}
-          <span class="growth" [class.positive]="summary.monthly.growth > 0">
-            {{ summary.monthly.growth > 0 ? '+' : '' }}{{ summary.monthly.growth }}%
+          {{ sale.Date }}: ฿{{ sale["Total Sales"].toLocaleString() }}
+          <span class="growth" [class.positive]="sale['Growth Rate (%)'] > 0">
+          {{ sale["Growth Rate (%)"] > 0 ? '+' : '' }}{{ sale["Growth Rate (%)"] }}%
           </span>
         </p>
       </div>
+    </div>
       <div *ngIf="summary.yearly" class="dashboard-card">
         <h3>Yearly Sales</h3>
         <p class="amount">
