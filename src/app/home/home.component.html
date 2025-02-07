@@ -16,7 +16,8 @@
 
   <div class="content">
     <h1>Financial Dashboard</h1>
-    
+
+    <!-- อัปโหลดไฟล์ -->
     <div class="upload-section">
       <label for="file-upload" class="upload-label">
         <span class="material-symbols-outlined">upload_file</span>
@@ -31,12 +32,29 @@
       >
     </div>
 
+    <!-- แสดง Loading -->
     <div *ngIf="isLoading" class="loading">
       <span class="material-symbols-outlined spinning">sync</span>
       Processing your file...
     </div>
 
-    <div *ngIf="currentFileId" class="dashboard-grid">
+    <!-- เลือกไฟล์ที่ได้จาก getFiles() -->
+    <div class="file-selection">
+      <label for="file-select">เลือกไฟล์ข้อมูล:</label>
+      <select *ngIf="userFiles.length > 0" [(ngModel)]="selectedFile" class="form-control">
+        <option *ngFor="let file of userFiles" [value]="file.file_id">
+          {{ file.filename }}
+        </option>
+      </select>
+    
+      <button class="btn-load-dashboard" (click)="fetchDashboardSummary()" [disabled]="!selectedFile">
+        <span class="material-symbols-outlined">analytics</span>
+        โหลดข้อมูล Dashboard
+      </button>
+    </div>
+
+    <!-- Dashboard Data -->
+    <div *ngIf="summary.daily || summary.yearly || summary.monthly_sales" class="dashboard-grid">
       <div *ngIf="summary.daily" class="dashboard-card">
         <h3>Daily Sales</h3>
         <p class="amount">
@@ -46,17 +64,7 @@
           </span>
         </p>
       </div>
-      <div *ngIf="summary.monthly_sales" class="dashboard-card">
-      <h3>Monthly Sales</h3>
-      <div *ngFor="let sale of summary.monthly_sales">
-        <p class="amount">
-          {{ sale.Date }}: ฿{{ sale["Total Sales"].toLocaleString() }}
-          <span class="growth" [class.positive]="sale['Growth Rate (%)'] > 0">
-          {{ sale["Growth Rate (%)"] > 0 ? '+' : '' }}{{ sale["Growth Rate (%)"] }}%
-          </span>
-        </p>
-      </div>
-    </div>
+
       <div *ngIf="summary.yearly" class="dashboard-card">
         <h3>Yearly Sales</h3>
         <p class="amount">
@@ -68,16 +76,19 @@
       </div>
     </div>
 
-    <div *ngIf="summary.forecast" class="forecast-section">
-      <h2>Sales Forecast</h2>
-      <div class="forecast-grid">
-        <div *ngFor="let sale of summary.forecast.sales; let i = index" class="forecast-card">
-          <h3>{{ summary.forecast.dates[i] }}</h3>
-          <p class="amount">฿{{ sale.toLocaleString() }}</p>
-        </div>
-      </div>
+    <!-- กราฟยอดขายรายเดือน -->
+    <div *ngIf="summary.monthly_sales" class="chart-container">
+      <h2>Monthly Sales Chart</h2>
+      <canvas #monthlySalesChart></canvas>
     </div>
 
+    <!-- กราฟพยากรณ์ยอดขาย -->
+    <div *ngIf="summary.forecast" class="chart-container">
+      <h2>Sales Forecast Chart</h2>
+      <canvas #forecastChart></canvas>
+    </div>
+
+    <!-- Top Products -->
     <div *ngIf="summary.top_products" class="top-products">
       <h2>Top Products</h2>
       <div class="products-grid">

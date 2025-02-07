@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule, Router } from '@angular/router';
 import { ThemeService } from '../services/theme.service';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-
+import { environment } from '../../environments/environment';
 @Component({
   selector: 'app-register',
   standalone: true,
@@ -58,7 +58,7 @@ export class RegisterComponent implements OnInit {
     formData.append('username', this.registerData.email);
     formData.append('password', this.registerData.password);
 
-    this.http.post('https://4e1f-49-237-22-17.ngrok-free.app/register', formData)
+    this.http.post(`${environment.BASE_URL}/register`, formData)
       .subscribe({
         next: (response) => {
           console.log('Registration successful:', response);

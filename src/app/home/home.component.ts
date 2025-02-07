@@ -1,66 +1,49 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ThemeService } from '../services/theme.service';
 import { AuthService } from '../services/auth.service';
 import { HttpClient, HttpParams, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
+import { Chart, registerables } from 'chart.js';
 import { Router } from '@angular/router';
 import { catchError } from 'rxjs/operators';
 import { throwError } from 'rxjs';
+import { FormsModule } from '@angular/forms';
+import { environment } from '../../environments/environment';
+Chart.register(...registerables);
 
-// Response interface for dashboard summary
 interface DashboardSummary {
-  daily?: {
-    sales: number;
-    growth: number;
-  };
-  monthly_sales?: Array<{
-    Date: string;
-    "Total Sales": number;
-    "Growth Rate (%)": number;
-  }>;
-  yearly?: {
-    sales: number;
-    growth: number;
-  };
-  top_products?: Array<{
-    product: string;
-    quantity: number;
-    revenue: number;
-  }>;
-  forecast?: {
-    sales: number[];
-    dates: string[];
-  };
+  daily?: { sales: number; growth: number };
+  monthly_sales?: Array<{ Date: string; "Total Sales": number; "Growth Rate (%)": number }>;
+  yearly?: { sales: number; growth: number };
+  top_products?: Array<{ product: string; quantity: number; revenue: number }>;
+  forecast?: { sales: number[]; dates: string[] };
 }
 
-// Request parameters interface
-interface DashboardParams {
-  file_id: string;                                                           // Required: File ID from upload API
-  report_type?: 'daily' | 'monthly' | 'yearly' | 'top_products' | 'forecast' | 'all'; // Optional: defaults to 'all'
-  product_filter?: string;                                                   // Optional: product name filter
-  forecast_periods?: number;                                                 // Optional: defaults to 3
-  forecast_quantity?: boolean;                                              // Optional: defaults to false
+interface FileItem {
+  file_id: string;
+  filename: string;
+  upload_time: string;
 }
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './home.component.html',
-  styleUrls: ['./home.component.css']
+  styleUrls: ['./home.component.css'],
 })
 export class HomeComponent implements OnInit {
   isDarkMode = false;
   isLoading = false;
+  userFiles: FileItem[] = [];
   summary: DashboardSummary = {};
-  currentFileId: string = '';
+  selectedFile: string = '';
 
-  // Default dashboard parameters
-  private defaultParams: Partial<DashboardParams> = {
-    report_type: 'all',
-    forecast_periods: 3,
-    forecast_quantity: false
-  };
+  @ViewChild('monthlySalesChart') monthlySalesChartRef!: ElementRef;
+  @ViewChild('forecastChart') forecastChartRef!: ElementRef;
+
+  private monthlySalesChart: Chart | null = null;
+  private forecastChart: Chart | null = null;
 
   constructor(
     private themeService: ThemeService,
@@ -70,73 +53,52 @@ export class HomeComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    this.themeService.darkMode$.subscribe(
-      isDark => this.isDarkMode = isDark
-    );
-
+    this.themeService.darkMode$.subscribe(isDark => this.isDarkMode = isDark);
     if (!this.authService.isAuthenticated()) {
       this.router.navigate(['/login']);
       return;
     }
+    this.getFiles();
   }
 
   toggleDarkMode() {
     this.themeService.toggleDarkMode();
   }
 
-  private handleError(error: HttpErrorResponse) {
-    console.error('An error occurred:', error);
-    
-    if (error.status === 401) {
-      this.authService.clearToken();
-      this.router.navigate(['/login']);
-      return throwError(() => new Error('Unauthorized access'));
-    }
-    
-    if (error.status === 0) {
-      return throwError(() => new Error('Network error occurred'));
-    }
-    
-    const message = error.error?.message || 'An unexpected error occurred';
-    return throwError(() => new Error(message));
+  getFiles() {
+    this.isLoading = true;
+    const headers = new HttpHeaders({
+      'Authorization': `Bearer ${this.authService.getToken()}`,
+      'Accept': 'application/json',
+      'ngrok-skip-browser-warning': 'true'
+    });
+
+    this.http.get<{ files: FileItem[] }>(
+      `${environment.BASE_URL}/getfiles/`,
+      { headers }
+    ).pipe(
+      catchError(this.handleError.bind(this))
+    ).subscribe({
+      next: (response) => {
+        this.userFiles = response.files;
+        this.isLoading = false;
+      },
+      error: (error) => {
+        this.isLoading = false;
+        alert(error.message || 'Failed to fetch files');
+      }
+    });
   }
 
-  fetchDashboardSummary(customParams: Partial<DashboardParams> = {}) {
-    if (!this.currentFileId) {
-      console.error('No file ID available');
+  fetchDashboardSummary() {
+    if (!this.selectedFile) {
+      alert('กรุณาเลือกไฟล์ก่อนโหลดข้อมูล Dashboard');
       return;
     }
 
     this.isLoading = true;
-    
-    // Merge default parameters with custom parameters
-    const params: DashboardParams = {
-      file_id: this.currentFileId,
-      ...this.defaultParams,
-      ...customParams
-    };
 
-    // Build query parameters
-    let httpParams = new HttpParams()
-      .set('file_id', params.file_id);
-
-    // Add optional parameters only if they are provided
-    if (params.report_type) {
-      httpParams = httpParams.set('report_type', params.report_type);
-    }
-
-    if (params.product_filter) {
-      httpParams = httpParams.set('product_filter', params.product_filter);
-    }
-
-    if (params.forecast_periods !== undefined) {
-      httpParams = httpParams.set('forecast_periods', params.forecast_periods.toString());
-    }
-
-    if (params.forecast_quantity !== undefined) {
-      httpParams = httpParams.set('forecast_quantity', params.forecast_quantity.toString());
-    }
-
+    const params = new HttpParams().set('file_id', this.selectedFile);
     const headers = new HttpHeaders({
       'Authorization': `Bearer ${this.authService.getToken()}`,
       'Accept': 'application/json',
@@ -144,23 +106,18 @@ export class HomeComponent implements OnInit {
       'ngrok-skip-browser-warning': 'true'
     });
 
-
     this.http.get<DashboardSummary>(
-      'https://4e1f-49-237-22-17.ngrok-free.app/dashboard/summary/', 
-      { 
-        params: httpParams, 
-        headers,
-        observe: 'response',
-        responseType: 'json'
-      }
+      `${environment.BASE_URL}/dashboard/summary/`, 
+      { params, headers }
     ).pipe(
       catchError(this.handleError.bind(this))
     ).subscribe({
       next: (response) => {
-        if (response.body) {
-          this.summary = response.body;
-        }
+        this.summary = response;
+
+
         this.isLoading = false;
+        this.renderCharts();
       },
       error: (error) => {
         this.isLoading = false;
@@ -175,25 +132,21 @@ export class HomeComponent implements OnInit {
       this.isLoading = true;
       const formData = new FormData();
       formData.append('file', input.files[0]);
-      
+
       const headers = new HttpHeaders({
         'Authorization': `Bearer ${this.authService.getToken()}`,
         'ngrok-skip-browser-warning': 'true'
       });
 
-
-      this.http.post<{file_id: string}>(
-        'https://4e1f-49-237-22-17.ngrok-free.app/upload/', 
+      this.http.post<{ file_id: string }>(
+        `${environment.BASE_URL}/upload/`, 
         formData,
         { headers }
-      ).pipe(
-        catchError(this.handleError.bind(this))
-      ).subscribe({
+      ).pipe(catchError(this.handleError.bind(this)))
+      .subscribe({
         next: (response) => {
-          console.log('File uploaded successfully:', response);
-          this.currentFileId = response.file_id;
-          // Call fetchDashboardSummary with default parameters
-          this.fetchDashboardSummary();
+          this.getFiles();
+          this.isLoading = false;
         },
         error: (error) => {
           this.isLoading = false;
@@ -201,5 +154,66 @@ export class HomeComponent implements OnInit {
         }
       });
     }
+  }
+
+  renderCharts() {
+    if (this.monthlySalesChart) this.monthlySalesChart.destroy();
+    if (this.forecastChart) this.forecastChart.destroy();
+
+    if (this.summary.monthly_sales && this.monthlySalesChartRef) {
+      const ctx = this.monthlySalesChartRef.nativeElement.getContext('2d');
+      this.monthlySalesChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: this.summary.monthly_sales.map(sale => sale.Date),
+          datasets: [{
+            label: 'ยอดขายรายเดือน',
+            data: this.summary.monthly_sales.map(sale => sale["Total Sales"]),
+            backgroundColor: 'rgba(54, 162, 235, 0.5)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+        }
+      });
+    }
+
+    if (this.summary.forecast && this.forecastChartRef) {
+      const ctx = this.forecastChartRef.nativeElement.getContext('2d');
+      this.forecastChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: this.summary.forecast.dates,
+          datasets: [{
+            label: 'พยากรณ์ยอดขาย',
+            data: this.summary.forecast.sales,
+            fill: false,
+            borderColor: 'rgba(255, 99, 132, 1)',
+            backgroundColor: 'rgba(255, 99, 132, 0.5)',
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+        }
+      });
+    }
+  }
+
+  private handleError(error: HttpErrorResponse) {
+    console.error('An error occurred:', error);
+    if (error.status === 401) {
+      this.authService.clearToken();
+      this.router.navigate(['/login']);
+      return throwError(() => new Error('Unauthorized access'));
+    }
+    if (error.status === 0) {
+      return throwError(() => new Error('Network error occurred'));
+    }
+    return throwError(() => new Error(error.error?.message || 'An unexpected error occurred'));
   }
 }

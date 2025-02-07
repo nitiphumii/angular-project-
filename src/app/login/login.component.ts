@@ -5,7 +5,7 @@ import { RouterModule, Router } from '@angular/router';
 import { ThemeService } from '../services/theme.service';
 import { AuthService } from '../services/auth.service';
 import { HttpClient } from '@angular/common/http';
-
+import { environment } from '../../environments/environment';
 interface LoginResponse {
   token: string;
 }
@@ -52,7 +52,7 @@ export class LoginComponent implements OnInit {
     formData.append('username', this.loginData.username);
     formData.append('password', this.loginData.password);
 
-    this.http.post<LoginResponse>('https://4e1f-49-237-22-17.ngrok-free.app/login', formData)
+    this.http.post<LoginResponse>(`${environment.BASE_URL}/login`, formData)
       .subscribe({
         next: (response) => {
           console.log('Login successful:', response);

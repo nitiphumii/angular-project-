@@ -213,3 +213,23 @@ input[type="file"] {
 .dark-mode .product-card p {
   color: #aaa;
 }
+.chart-container {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.dark-mode .chart-container {
+  background: #1e1e1e;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+canvas {
+  width: 100% !important;
+  max-width: 800px;
+  height: auto !important;
+  margin: 0 auto;
+}
