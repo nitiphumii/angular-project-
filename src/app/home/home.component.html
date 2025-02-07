@@ -42,9 +42,21 @@
     <div class="controls-section">
       <div class="file-selection">
         <label for="file-select">เลือกไฟล์ข้อมูล:</label>
-        <select *ngIf="userFiles.length > 0" [(ngModel)]="selectedFile" class="form-control">
+        <select *ngIf="userFiles.length > 0" [(ngModel)]="selectedFile" (ngModelChange)="onFileSelect($event)" class="form-control">
+          <option value="">Select a file</option>
           <option *ngFor="let file of userFiles" [value]="file.file_id">
             {{ file.filename }}
+          </option>
+        </select>
+      </div>
+
+      <!-- Product Selection -->
+      <div class="product-selection" *ngIf="availableProducts.length > 0">
+        <label for="product-select">เลือกสินค้า:</label>
+        <select [(ngModel)]="selectedProduct" (change)="fetchDashboardSummary()" class="form-control">
+          <option value="">All Products</option>
+          <option *ngFor="let product of availableProducts" [value]="product.Product">
+            {{ product.Product }}
           </option>
         </select>
       </div>
@@ -76,29 +88,6 @@
       </button>
     </div>
 
-    <!-- Dashboard Data -->
-    <!-- <div *ngIf="summary.daily || summary.yearly || summary.monthly_sales" class="dashboard-grid">
-      <div *ngIf="summary.daily" class="dashboard-card">
-        <h3>Daily Sales</h3>
-        <p class="amount">
-          ฿{{ summary.daily.sales.toLocaleString() }}
-          <span class="growth" [class.positive]="summary.daily.growth > 0">
-            {{ summary.daily.growth > 0 ? '+' : '' }}{{ summary.daily.growth }}%
-          </span>
-        </p>
-      </div>
-
-      <div *ngIf="summary.yearly" class="dashboard-card">
-        <h3>Yearly Sales</h3>
-        <p class="amount">
-          ฿{{ summary.yearly.sales.toLocaleString() }}
-          <span class="growth" [class.positive]="summary.yearly.growth > 0">
-            {{ summary.yearly.growth > 0 ? '+' : '' }}{{ summary.yearly.growth }}%
-          </span>
-        </p>
-      </div>
-    </div> -->
-
     <!-- Sales Chart -->
     <div *ngIf="summary" class="chart-container">
       <canvas #salesChart></canvas>
@@ -114,9 +103,8 @@
       <h2>Top Products</h2>
       <div class="products-grid">
         <div *ngFor="let product of summary.top_products" class="product-card">
-          <h3>{{ product.product }}</h3>
-          <p>Quantity: {{ product.quantity }}</p>
-          <p>Revenue: ฿{{ product.revenue.toLocaleString() }}</p>
+          <h3>{{ product.Product }}</h3>
+          <p>Total Sales: ฿{{ product["Total Sales"].toLocaleString() }}</p>
         </div>
       </div>
     </div>

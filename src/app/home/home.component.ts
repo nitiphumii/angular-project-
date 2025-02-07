@@ -15,7 +15,7 @@ interface DashboardSummary {
   daily_sales?: Array<{ Date: string; "Total Sales": number; }>;
   monthly_sales?: Array<{ Date: string; "Total Sales": number; "Growth Rate (%)": number }>;
   yearly_sales?: Array<{ Date: string; "Total Sales": number; "Growth Rate (%)": number}>;
-  top_products?: Array<{ product: string; quantity: number; revenue: number }>;
+  top_products?: Array<{ Product: string; "Total Sales": number }>;
   forecast?: { sales: number[]; dates: string[] };
 }
 
@@ -23,9 +23,10 @@ interface FileItem {
   file_id: string;
   filename: string;
   upload_time: string;
+  products?: Array<{ Product: string; "Total Sales": number }>;
 }
 
-type ReportType = 'daily' | 'monthly' | 'yearly';
+type ReportType = 'daily' | 'monthly' | 'yearly' | 'top_products';
 
 @Component({
   selector: 'app-home',
@@ -41,6 +42,8 @@ export class HomeComponent implements OnInit {
   summary: DashboardSummary = {};
   selectedFile: string = '';
   selectedReportType: ReportType = 'daily';
+  selectedProduct: string = '';
+  availableProducts: Array<{ Product: string; "Total Sales": number }> = [];
 
   @ViewChild('salesChart') salesChartRef!: ElementRef;
   @ViewChild('forecastChart') forecastChartRef!: ElementRef;
@@ -93,6 +96,52 @@ export class HomeComponent implements OnInit {
     });
   }
 
+  onFileSelect(fileId: string) {
+    this.selectedFile = fileId;
+    this.selectedProduct = ''; // Reset product selection
+    this.fetchInitialData();
+  }
+
+  fetchInitialData() {
+    if (!this.selectedFile) return;
+
+    this.isLoading = true;
+    const params = new HttpParams()
+      .set('file_id', this.selectedFile)
+      .set('report_type', 'top_products');
+
+    const headers = new HttpHeaders({
+      'Authorization': `Bearer ${this.authService.getToken()}`,
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true'
+    });
+
+    this.http.get<DashboardSummary>(
+      `${environment.BASE_URL}/dashboard/summary/`,
+      { params, headers }
+    ).pipe(
+      catchError(this.handleError.bind(this))
+    ).subscribe({
+      next: (response) => {
+        if (response.top_products) {
+          // Store the products list for the selected file
+          const selectedFileIndex = this.userFiles.findIndex(f => f.file_id === this.selectedFile);
+          if (selectedFileIndex !== -1) {
+            this.userFiles[selectedFileIndex].products = response.top_products;
+            this.availableProducts = response.top_products;
+            console.log("Product Data:", this.availableProducts);
+          }
+        }
+        this.fetchDashboardSummary(); // Fetch the regular dashboard data
+      },
+      error: (error) => {
+        this.isLoading = false;
+        alert(error.message || 'Failed to fetch initial data');
+      }
+    });
+  }
+
   setReportType(type: ReportType) {
     this.selectedReportType = type;
     if (this.selectedFile) {
@@ -108,10 +157,14 @@ export class HomeComponent implements OnInit {
 
     this.isLoading = true;
 
-    const params = new HttpParams()
+    let params = new HttpParams()
       .set('file_id', this.selectedFile)
       .set('report_type', this.selectedReportType)
       .set('forecast_3', 'true');
+
+    if (this.selectedProduct) {
+      params = params.set('product_filter', this.selectedProduct);
+    }
 
     const headers = new HttpHeaders({
       'Authorization': `Bearer ${this.authService.getToken()}`,

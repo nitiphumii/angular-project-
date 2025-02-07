@@ -117,7 +117,7 @@ input[type="file"] {
   align-items: center;
 }
 
-.file-selection {
+.file-selection, .product-selection {
   display: flex;
   gap: 1rem;
   align-items: center;
