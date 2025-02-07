@@ -12,9 +12,9 @@ import { environment } from '../../environments/environment';
 Chart.register(...registerables);
 
 interface DashboardSummary {
-  daily_sales?: Array<{ Date: string; "Total Sales": number; }>;
-  monthly_sales?: Array<{ Date: string; "Total Sales": number; "Growth Rate (%)": number }>;
-  yearly_sales?: Array<{ Date: string; "Total Sales": number; "Growth Rate (%)": number}>;
+  daily_sales?: Array<{ Date: string; "Total Sales": number; "Quantity Sold": number }>;
+  monthly_sales?: Array<{ Date: string; "Total Sales": number; "Growth Rate (%)": number; "Quantity Sold": number }>;
+  yearly_sales?: Array<{ Date: string; "Total Sales": number; "Growth Rate (%)": number }>;
   top_products?: Array<{ Product: string; "Total Sales": number }>;
   forecast?: { sales: number[]; dates: string[] };
 }
@@ -242,6 +242,7 @@ export class HomeComponent implements OnInit {
           if (this.summary.daily_sales) {
             labels = this.summary.daily_sales.map(sale => sale.Date);
             data = this.summary.daily_sales.map(sale => sale["Total Sales"]);
+            data = this.summary.daily_sales.map(sale => sale["Quantity Sold"]);
             title = 'Daily Sales';
           }
           break;
@@ -249,6 +250,7 @@ export class HomeComponent implements OnInit {
           if (this.summary.monthly_sales) {
             labels = this.summary.monthly_sales.map(sale => sale.Date);
             data = this.summary.monthly_sales.map(sale => sale["Total Sales"]);
+            data = this.summary.monthly_sales.map(sale => sale["Quantity Sold"]);
             title = 'Monthly Sales';
           }
           break;
