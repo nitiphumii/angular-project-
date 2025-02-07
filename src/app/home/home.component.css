@@ -109,6 +109,81 @@ input[type="file"] {
   }
 }
 
+.controls-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 2rem 0;
+  align-items: center;
+}
+
+.file-selection {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.report-type-filters {
+  display: flex;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.filter-btn {
+  padding: 0.5rem 1.5rem;
+  border: 2px solid #6c5ce7;
+  border-radius: 8px;
+  background: transparent;
+  color: #6c5ce7;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.dark-mode .filter-btn {
+  border-color: #8f7ff7;
+  color: #8f7ff7;
+}
+
+.filter-btn.active {
+  background: #6c5ce7;
+  color: white;
+}
+
+.dark-mode .filter-btn.active {
+  background: #8f7ff7;
+}
+
+.filter-btn:hover {
+  background: #6c5ce7;
+  color: white;
+}
+
+.dark-mode .filter-btn:hover {
+  background: #8f7ff7;
+}
+
+.btn-load-dashboard {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: #6c5ce7;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-load-dashboard:hover {
+  background: #5a4bd1;
+}
+
+.btn-load-dashboard:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
 .dashboard-grid, .forecast-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -213,6 +288,7 @@ input[type="file"] {
 .dark-mode .product-card p {
   color: #aaa;
 }
+
 .chart-container {
   margin-top: 2rem;
   padding: 1rem;
@@ -232,4 +308,18 @@ canvas {
   max-width: 800px;
   height: auto !important;
   margin: 0 auto;
+}
+
+select.form-control {
+  padding: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  background: white;
+  color: #333;
+}
+
+.dark-mode select.form-control {
+  background: #2d2d2d;
+  border-color: #404040;
+  color: white;
 }

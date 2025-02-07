@@ -38,15 +38,38 @@
       Processing your file...
     </div>
 
-    <!-- เลือกไฟล์ที่ได้จาก getFiles() -->
-    <div class="file-selection">
-      <label for="file-select">เลือกไฟล์ข้อมูล:</label>
-      <select *ngIf="userFiles.length > 0" [(ngModel)]="selectedFile" class="form-control">
-        <option *ngFor="let file of userFiles" [value]="file.file_id">
-          {{ file.filename }}
-        </option>
-      </select>
-    
+    <!-- เลือกไฟล์และประเภทรายงาน -->
+    <div class="controls-section">
+      <div class="file-selection">
+        <label for="file-select">เลือกไฟล์ข้อมูล:</label>
+        <select *ngIf="userFiles.length > 0" [(ngModel)]="selectedFile" class="form-control">
+          <option *ngFor="let file of userFiles" [value]="file.file_id">
+            {{ file.filename }}
+          </option>
+        </select>
+      </div>
+
+      <div class="report-type-filters">
+        <button 
+          [class.active]="selectedReportType === 'daily'"
+          (click)="setReportType('daily')"
+          class="filter-btn">
+          Daily
+        </button>
+        <button 
+          [class.active]="selectedReportType === 'monthly'"
+          (click)="setReportType('monthly')"
+          class="filter-btn">
+          Monthly
+        </button>
+        <button 
+          [class.active]="selectedReportType === 'yearly'"
+          (click)="setReportType('yearly')"
+          class="filter-btn">
+          Yearly
+        </button>
+      </div>
+
       <button class="btn-load-dashboard" (click)="fetchDashboardSummary()" [disabled]="!selectedFile">
         <span class="material-symbols-outlined">analytics</span>
         โหลดข้อมูล Dashboard
@@ -76,15 +99,13 @@
       </div>
     </div>
 
-    <!-- กราฟยอดขายรายเดือน -->
-    <div *ngIf="summary.monthly_sales" class="chart-container">
-      <h2>Monthly Sales Chart</h2>
-      <canvas #monthlySalesChart></canvas>
+    <!-- Sales Chart -->
+    <div *ngIf="summary" class="chart-container">
+      <canvas #salesChart></canvas>
     </div>
 
-    <!-- กราฟพยากรณ์ยอดขาย -->
+    <!-- Forecast Chart -->
     <div *ngIf="summary.forecast" class="chart-container">
-      <h2>Sales Forecast Chart</h2>
       <canvas #forecastChart></canvas>
     </div>
 

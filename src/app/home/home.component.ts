@@ -12,9 +12,17 @@ import { environment } from '../../environments/environment';
 Chart.register(...registerables);
 
 interface DashboardSummary {
-  daily?: { sales: number; growth: number };
+  daily?: { 
+    sales: number; 
+    growth: number;
+    data?: Array<{ date: string; sales: number; growth: number }>;
+  };
   monthly_sales?: Array<{ Date: string; "Total Sales": number; "Growth Rate (%)": number }>;
-  yearly?: { sales: number; growth: number };
+  yearly?: { 
+    sales: number; 
+    growth: number;
+    data?: Array<{ year: string; sales: number; growth: number }>;
+  };
   top_products?: Array<{ product: string; quantity: number; revenue: number }>;
   forecast?: { sales: number[]; dates: string[] };
 }
@@ -24,6 +32,8 @@ interface FileItem {
   filename: string;
   upload_time: string;
 }
+
+type ReportType = 'daily' | 'monthly' | 'yearly';
 
 @Component({
   selector: 'app-home',
@@ -38,11 +48,12 @@ export class HomeComponent implements OnInit {
   userFiles: FileItem[] = [];
   summary: DashboardSummary = {};
   selectedFile: string = '';
+  selectedReportType: ReportType = 'daily';
 
-  @ViewChild('monthlySalesChart') monthlySalesChartRef!: ElementRef;
+  @ViewChild('salesChart') salesChartRef!: ElementRef;
   @ViewChild('forecastChart') forecastChartRef!: ElementRef;
 
-  private monthlySalesChart: Chart | null = null;
+  private salesChart: Chart | null = null;
   private forecastChart: Chart | null = null;
 
   constructor(
@@ -90,6 +101,13 @@ export class HomeComponent implements OnInit {
     });
   }
 
+  setReportType(type: ReportType) {
+    this.selectedReportType = type;
+    if (this.selectedFile) {
+      this.fetchDashboardSummary();
+    }
+  }
+
   fetchDashboardSummary() {
     if (!this.selectedFile) {
       alert('กรุณาเลือกไฟล์ก่อนโหลดข้อมูล Dashboard');
@@ -98,7 +116,11 @@ export class HomeComponent implements OnInit {
 
     this.isLoading = true;
 
-    const params = new HttpParams().set('file_id', this.selectedFile);
+    const params = new HttpParams()
+      .set('file_id', this.selectedFile)
+      .set('report_type', this.selectedReportType)
+      .set('forecast_3', 'true');
+
     const headers = new HttpHeaders({
       'Authorization': `Bearer ${this.authService.getToken()}`,
       'Accept': 'application/json',
@@ -114,8 +136,6 @@ export class HomeComponent implements OnInit {
     ).subscribe({
       next: (response) => {
         this.summary = response;
-
-
         this.isLoading = false;
         this.renderCharts();
       },
@@ -157,30 +177,68 @@ export class HomeComponent implements OnInit {
   }
 
   renderCharts() {
-    if (this.monthlySalesChart) this.monthlySalesChart.destroy();
+    if (this.salesChart) this.salesChart.destroy();
     if (this.forecastChart) this.forecastChart.destroy();
 
-    if (this.summary.monthly_sales && this.monthlySalesChartRef) {
-      const ctx = this.monthlySalesChartRef.nativeElement.getContext('2d');
-      this.monthlySalesChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: this.summary.monthly_sales.map(sale => sale.Date),
-          datasets: [{
-            label: 'ยอดขายรายเดือน',
-            data: this.summary.monthly_sales.map(sale => sale["Total Sales"]),
-            backgroundColor: 'rgba(54, 162, 235, 0.5)',
-            borderColor: 'rgba(54, 162, 235, 1)',
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-        }
-      });
+    // Render sales chart based on report type
+    if (this.salesChartRef) {
+      const ctx = this.salesChartRef.nativeElement.getContext('2d');
+      let labels: string[] = [];
+      let data: number[] = [];
+      let title = '';
+
+      switch (this.selectedReportType) {
+        case 'daily':
+          if (this.summary.daily?.data) {
+            labels = this.summary.daily.data.map(item => item.date);
+            data = this.summary.daily.data.map(item => item.sales);
+            title = 'Daily Sales';
+          }
+          break;
+        case 'monthly':
+          if (this.summary.monthly_sales) {
+            labels = this.summary.monthly_sales.map(sale => sale.Date);
+            data = this.summary.monthly_sales.map(sale => sale["Total Sales"]);
+            title = 'Monthly Sales';
+          }
+          break;
+        case 'yearly':
+          if (this.summary.yearly?.data) {
+            labels = this.summary.yearly.data.map(item => item.year);
+            data = this.summary.yearly.data.map(item => item.sales);
+            title = 'Yearly Sales';
+          }
+          break;
+      }
+
+      if (labels.length > 0 && data.length > 0) {
+        this.salesChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: title,
+              data: data,
+              backgroundColor: 'rgba(54, 162, 235, 0.5)',
+              borderColor: 'rgba(54, 162, 235, 1)',
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              title: {
+                display: true,
+                text: title
+              }
+            }
+          }
+        });
+      }
     }
 
+    // Render forecast chart
     if (this.summary.forecast && this.forecastChartRef) {
       const ctx = this.forecastChartRef.nativeElement.getContext('2d');
       this.forecastChart = new Chart(ctx, {
@@ -188,7 +246,7 @@ export class HomeComponent implements OnInit {
         data: {
           labels: this.summary.forecast.dates,
           datasets: [{
-            label: 'พยากรณ์ยอดขาย',
+            label: 'Sales Forecast',
             data: this.summary.forecast.sales,
             fill: false,
             borderColor: 'rgba(255, 99, 132, 1)',
@@ -199,6 +257,12 @@ export class HomeComponent implements OnInit {
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          plugins: {
+            title: {
+              display: true,
+              text: 'Sales Forecast'
+            }
+          }
         }
       });
     }
