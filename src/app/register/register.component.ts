@@ -58,7 +58,7 @@ export class RegisterComponent implements OnInit {
     formData.append('username', this.registerData.email);
     formData.append('password', this.registerData.password);
 
-    this.http.post('https://8bae-49-237-17-139.ngrok-free.app/register', formData)
+    this.http.post('https://4e1f-49-237-22-17.ngrok-free.app/register', formData)
       .subscribe({
         next: (response) => {
           console.log('Registration successful:', response);

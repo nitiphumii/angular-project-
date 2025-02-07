@@ -137,13 +137,16 @@ export class HomeComponent implements OnInit {
       httpParams = httpParams.set('forecast_quantity', params.forecast_quantity.toString());
     }
 
-    const headers = new HttpHeaders()
-      .set('Authorization', `Bearer ${this.authService.getToken()}`)
-      .set('Accept', 'application/json')
-      .set('Content-Type', 'application/json');
+    const headers = new HttpHeaders({
+      'Authorization': `Bearer ${this.authService.getToken()}`,
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true'
+    });
+
 
     this.http.get<DashboardSummary>(
-      'https://8bae-49-237-17-139.ngrok-free.app/dashboard/summary/', 
+      'https://4e1f-49-237-22-17.ngrok-free.app/dashboard/summary/', 
       { 
         params: httpParams, 
         headers,
@@ -173,11 +176,14 @@ export class HomeComponent implements OnInit {
       const formData = new FormData();
       formData.append('file', input.files[0]);
       
-      const headers = new HttpHeaders()
-        .set('Authorization', `Bearer ${this.authService.getToken()}`);
+      const headers = new HttpHeaders({
+        'Authorization': `Bearer ${this.authService.getToken()}`,
+        'ngrok-skip-browser-warning': 'true'
+      });
+
 
       this.http.post<{file_id: string}>(
-        'https://8bae-49-237-17-139.ngrok-free.app/upload/', 
+        'https://4e1f-49-237-22-17.ngrok-free.app/upload/', 
         formData,
         { headers }
       ).pipe(

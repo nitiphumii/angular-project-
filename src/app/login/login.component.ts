@@ -52,7 +52,7 @@ export class LoginComponent implements OnInit {
     formData.append('username', this.loginData.username);
     formData.append('password', this.loginData.password);
 
-    this.http.post<LoginResponse>('https://8bae-49-237-17-139.ngrok-free.app/login', formData)
+    this.http.post<LoginResponse>('https://4e1f-49-237-22-17.ngrok-free.app/login', formData)
       .subscribe({
         next: (response) => {
           console.log('Login successful:', response);
