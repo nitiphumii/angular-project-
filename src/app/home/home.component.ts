@@ -12,17 +12,9 @@ import { environment } from '../../environments/environment';
 Chart.register(...registerables);
 
 interface DashboardSummary {
-  daily?: { 
-    sales: number; 
-    growth: number;
-    data?: Array<{ date: string; sales: number; growth: number }>;
-  };
+  daily_sales?: Array<{ Date: string; "Total Sales": number; }>;
   monthly_sales?: Array<{ Date: string; "Total Sales": number; "Growth Rate (%)": number }>;
-  yearly?: { 
-    sales: number; 
-    growth: number;
-    data?: Array<{ year: string; sales: number; growth: number }>;
-  };
+  yearly_sales?: Array<{ Date: string; "Total Sales": number; "Growth Rate (%)": number}>;
   top_products?: Array<{ product: string; quantity: number; revenue: number }>;
   forecast?: { sales: number[]; dates: string[] };
 }
@@ -135,6 +127,7 @@ export class HomeComponent implements OnInit {
       catchError(this.handleError.bind(this))
     ).subscribe({
       next: (response) => {
+        console.log("API Response:", response);
         this.summary = response;
         this.isLoading = false;
         this.renderCharts();
@@ -180,6 +173,10 @@ export class HomeComponent implements OnInit {
     if (this.salesChart) this.salesChart.destroy();
     if (this.forecastChart) this.forecastChart.destroy();
 
+    console.log("Daily Data:", this.summary.daily_sales);
+    console.log("Yearly Data:", this.summary.yearly_sales);
+    console.log("Monthly Data:", this.summary.monthly_sales);
+
     // Render sales chart based on report type
     if (this.salesChartRef) {
       const ctx = this.salesChartRef.nativeElement.getContext('2d');
@@ -189,9 +186,9 @@ export class HomeComponent implements OnInit {
 
       switch (this.selectedReportType) {
         case 'daily':
-          if (this.summary.daily?.data) {
-            labels = this.summary.daily.data.map(item => item.date);
-            data = this.summary.daily.data.map(item => item.sales);
+          if (this.summary.daily_sales) {
+            labels = this.summary.daily_sales.map(sale => sale.Date);
+            data = this.summary.daily_sales.map(sale => sale["Total Sales"]);
             title = 'Daily Sales';
           }
           break;
@@ -203,9 +200,9 @@ export class HomeComponent implements OnInit {
           }
           break;
         case 'yearly':
-          if (this.summary.yearly?.data) {
-            labels = this.summary.yearly.data.map(item => item.year);
-            data = this.summary.yearly.data.map(item => item.sales);
+          if (this.summary.yearly_sales) {
+            labels = this.summary.yearly_sales.map(sale => sale.Date);
+            data = this.summary.yearly_sales.map(sale => sale["Total Sales"]);
             title = 'Yearly Sales';
           }
           break;
