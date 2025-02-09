@@ -152,7 +152,7 @@ input[type="file"] {
 
 .dark-mode .filter-btn {
   border-color: #8f7ff7;
-  color: #8f7ff7;
+  color: #ffffff;
 }
 
 .filter-btn.active {
@@ -340,6 +340,33 @@ select.form-control {
 }
 
 .dark-mode select.form-control {
+  background: #2d2d2d;
+  border-color: #404040;
+  color: white;
+}
+
+.forecast-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.forecast-controls label {
+  color: inherit;
+  font-weight: 500;
+}
+
+.forecast-controls select {
+  padding: 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  background: white;
+  color: #333;
+  min-width: 120px;
+}
+
+.dark-mode .forecast-controls select {
   background: #2d2d2d;
   border-color: #404040;
   color: white;

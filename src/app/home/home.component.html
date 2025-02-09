@@ -93,7 +93,28 @@
           class="filter-btn">
           Compare Trends
         </button>
+        <button 
+          [class.active]="selectedReportType === 'forecast'"
+          (click)="setReportType('forecast')"
+          class="filter-btn">
+          Forecast
+        </button>
       </div>
+
+      <!-- Add forecast periods selector -->
+      <div class="forecast-controls" *ngIf="selectedReportType === 'forecast'">
+        <label for="forecast-periods">Forecast Periods:</label>
+        <select 
+          id="forecast-periods"
+          [(ngModel)]="selectedForecastPeriods"
+          (change)="fetchDashboardSummary()"
+          class="form-control">
+          <option *ngFor="let period of forecastPeriods" [value]="period">
+            {{ period }} {{ period === 3 ? 'Period' : 'Periods' }}
+          </option>
+        </select>
+      </div>
+
 
       <div class="report-type-filters" *ngIf="isCompare">
         <button 
@@ -126,9 +147,10 @@
       <canvas #salesChart></canvas>
     </div>
 
-    <div *ngIf="summary.forecast" class="chart-container">
+    <div class="chart-container" *ngIf="selectedReportType === 'forecast' && summary.forecast">
       <canvas #forecastChart></canvas>
     </div>
+
 
     <div *ngIf="summary.top_products" class="top-products">
       <h2>Top Products</h2>

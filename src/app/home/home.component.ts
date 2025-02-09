@@ -17,7 +17,7 @@ interface DashboardSummary {
   yearly_sales?: Array<{ Date: string; "Total Sales": number; "Growth Rate (%)": number }>;
   top_products?: Array<{ Product: string; "Total Sales": number }>;
   compare_trends?: Array<{ Date: string; Product: string; "Total Sales": number; "Quantity Sold": number}>;
-  forecast?: { sales: number[]; dates: string[] };
+  forecast?: Array<{ Date: string; "Forecasted Sales": number }>;
 }
 
 interface FileItem {
@@ -27,7 +27,7 @@ interface FileItem {
   products?: Array<{ Product: string; "Total Sales": number }>;
 }
 
-type ReportType = 'daily' | 'monthly' | 'yearly' | 'top_products' | 'compare_trends';
+type ReportType = 'daily' | 'monthly' | 'yearly' | 'top_products' | 'compare_trends' | 'forecast';
 
 @Component({
   selector: 'app-home',
@@ -49,6 +49,8 @@ export class HomeComponent implements OnInit {
   selectedMonth: string = '';
   availableProducts: Array<{ Product: string; "Total Sales": number }> = [];
   availableMonths: string[] = [];
+  selectedForecastPeriods: number = 3;
+  forecastPeriods: number[] = Array.from({length: 10}, (_, i) => i + 3);
 
   @ViewChild('salesChart') salesChartRef!: ElementRef;
   @ViewChild('forecastChart') forecastChartRef!: ElementRef;
@@ -174,11 +176,11 @@ export class HomeComponent implements OnInit {
 
   setReportType(type: ReportType) {
     this.selectedReportType = type;
-    if(type == 'compare_trends'){
+    if(type === 'compare_trends'){
       this.isCompare = true;
-    }else{
+    } else {
       this.isCompare = false;
-    };
+    }
     if (this.selectedFile) {
       this.fetchDashboardSummary();
     }
@@ -202,8 +204,14 @@ export class HomeComponent implements OnInit {
     let params = new HttpParams()
       .set('file_id', this.selectedFile)
       .set('report_type', this.selectedReportType)
-      .set('time_filter', this.selectedReportType1)
-      .set('forecast_3', 'true');
+      .set('time_filter', this.selectedReportType1);
+
+    // Add forecast periods parameter when in forecast mode
+    if (this.selectedReportType === 'forecast') {
+      params = params.set('forecast_periods', this.selectedForecastPeriods.toString());
+    } else {
+      params = params.set('forecast_3', 'true');
+    }
 
     if (this.selectedProduct) {
       params = params.set('product_filter', this.selectedProduct);
@@ -334,6 +342,53 @@ export class HomeComponent implements OnInit {
             }
           }
         });
+      } else if (this.selectedReportType === 'forecast' && this.summary.forecast) {
+        const dates = this.summary.forecast.map(item => item.Date);
+        const forecastedSales = this.summary.forecast.map(item => item["Forecasted Sales"]);
+
+        this.salesChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: dates,
+            datasets: [{
+              label: 'Sales Forecast',
+              data: forecastedSales,
+              borderColor: 'rgba(255, 99, 132, 1)',
+              backgroundColor: 'rgba(255, 99, 132, 0.2)',
+              fill: true,
+              tension: 0.4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              title: {
+                display: true,
+                text: 'Sales Forecast'
+              },
+              legend: {
+                display: true,
+                position: 'top'
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: 'Forecasted Sales'
+                }
+              },
+              x: {
+                title: {
+                  display: true,
+                  text: 'Date'
+                }
+              }
+            }
+          }
+        });
       } else {
         let labels: string[] = [];
         let data: number[] = [];
@@ -390,34 +445,6 @@ export class HomeComponent implements OnInit {
           });
         }
       }
-    }
-
-    if (this.summary.forecast && this.forecastChartRef) {
-      const ctx = this.forecastChartRef.nativeElement.getContext('2d');
-      this.forecastChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: this.summary.forecast.dates,
-          datasets: [{
-            label: 'Sales Forecast',
-            data: this.summary.forecast.sales,
-            fill: false,
-            borderColor: 'rgba(255, 99, 132, 1)',
-            backgroundColor: 'rgba(255, 99, 132, 0.5)',
-            borderWidth: 2
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            title: {
-              display: true,
-              text: 'Sales Forecast'
-            }
-          }
-        }
-      });
     }
   }
 
