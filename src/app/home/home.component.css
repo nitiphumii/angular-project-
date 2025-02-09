@@ -117,10 +117,11 @@ input[type="file"] {
   align-items: center;
 }
 
-.file-selection, .product-selection {
+.file-selection, .product-selection, .month-selection {
   display: flex;
   gap: 1rem;
   align-items: center;
+  margin-bottom: 1rem;
 }
 
 .report-type-filters {

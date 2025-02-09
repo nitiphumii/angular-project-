@@ -17,7 +17,6 @@
   <div class="content">
     <h1>Financial Dashboard</h1>
 
-    <!-- อัปโหลดไฟล์ -->
     <div class="upload-section">
       <label for="file-upload" class="upload-label">
         <span class="material-symbols-outlined">upload_file</span>
@@ -32,13 +31,11 @@
       >
     </div>
 
-    <!-- แสดง Loading -->
     <div *ngIf="isLoading" class="loading">
       <span class="material-symbols-outlined spinning">sync</span>
       Processing your file...
     </div>
 
-    <!-- เลือกไฟล์และประเภทรายงาน -->
     <div class="controls-section">
       <div class="file-selection">
         <label for="file-select">เลือกไฟล์ข้อมูล:</label>
@@ -50,13 +47,23 @@
         </select>
       </div>
 
-      <!-- Product Selection -->
       <div class="product-selection" *ngIf="availableProducts.length > 0">
         <label for="product-select">เลือกสินค้า:</label>
         <select [(ngModel)]="selectedProduct" (change)="fetchDashboardSummary()" class="form-control">
           <option value="">All Products</option>
           <option *ngFor="let product of availableProducts" [value]="product.Product">
             {{ product.Product }}
+          </option>
+        </select>
+      </div>
+
+      <!-- Month selection for daily view -->
+      <div class="month-selection" *ngIf="selectedReportType === 'daily'">
+        <label for="month-select">เลือกเดือน:</label>
+        <select [(ngModel)]="selectedMonth" (change)="onMonthSelect(selectedMonth)" class="form-control">
+          <option value="" disabled selected>-- กรุณาเลือกเดือน --</option>
+          <option *ngFor="let month of availableMonths" [value]="month">
+            {{ month }}
           </option>
         </select>
       </div>
@@ -87,6 +94,7 @@
           Compare Trends
         </button>
       </div>
+
       <div class="report-type-filters" *ngIf="isCompare">
         <button 
           [class.active]="selectedReportType1 === 'daily'"
@@ -114,17 +122,14 @@
       </button>
     </div>
 
-    <!-- Sales Chart -->
     <div *ngIf="summary" class="chart-container">
       <canvas #salesChart></canvas>
     </div>
 
-    <!-- Forecast Chart -->
     <div *ngIf="summary.forecast" class="chart-container">
       <canvas #forecastChart></canvas>
     </div>
 
-    <!-- Top Products -->
     <div *ngIf="summary.top_products" class="top-products">
       <h2>Top Products</h2>
       <div class="products-grid">

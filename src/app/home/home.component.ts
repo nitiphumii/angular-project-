@@ -46,7 +46,9 @@ export class HomeComponent implements OnInit {
   selectedReportType: ReportType = 'daily';
   selectedReportType1: ReportType = 'yearly';
   selectedProduct: string = '';
+  selectedMonth: string = '';
   availableProducts: Array<{ Product: string; "Total Sales": number }> = [];
+  availableMonths: string[] = [];
 
   @ViewChild('salesChart') salesChartRef!: ElementRef;
   @ViewChild('forecastChart') forecastChartRef!: ElementRef;
@@ -68,6 +70,27 @@ export class HomeComponent implements OnInit {
       return;
     }
     this.getFiles();
+    this.initializeMonths();
+  }
+
+  initializeMonths() {
+    if (!this.summary || !this.summary.daily_sales) {
+      console.warn("No daily sales data available.");
+      return;
+    }
+    const monthSet = new Set<string>();
+
+    this.summary.daily_sales.forEach(sale => {
+      const date = sale.Date;
+      const yearMonth = date.substring(0, 7);
+      monthSet.add(yearMonth);
+    });
+
+    this.availableMonths = Array.from(monthSet).sort();
+
+    const currentDate = new Date();
+    this.selectedMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+    this.selectedMonth = "";
   }
 
   toggleDarkMode() {
@@ -103,6 +126,11 @@ export class HomeComponent implements OnInit {
     this.selectedFile = fileId;
     this.selectedProduct = '';
     this.fetchInitialData();
+  }
+
+  onMonthSelect(month: string) {
+    this.selectedMonth = month;
+    this.renderCharts();
   }
 
   fetchInitialData() {
@@ -181,6 +209,10 @@ export class HomeComponent implements OnInit {
       params = params.set('product_filter', this.selectedProduct);
     }
 
+    if (this.selectedReportType === 'daily' && this.selectedMonth) {
+      params = params.set('month_filter', this.selectedMonth);
+    }
+
     const headers = new HttpHeaders({
       'Authorization': `Bearer ${this.authService.getToken()}`,
       'Accept': 'application/json',
@@ -197,6 +229,7 @@ export class HomeComponent implements OnInit {
       next: (response) => {
         console.log("API Response:", response);
         this.summary = response;
+        this.initializeMonths();
         this.isLoading = false;
         this.renderCharts();
       },
@@ -245,7 +278,6 @@ export class HomeComponent implements OnInit {
       const ctx = this.salesChartRef.nativeElement.getContext('2d');
       
       if (this.selectedReportType === 'compare_trends' && this.summary.compare_trends) {
-        // Group data by product
         const productGroups = this.summary.compare_trends.reduce((groups: { [key: string]: any[] }, item) => {
           const product = item.Product;
           if (!groups[product]) {
@@ -255,10 +287,8 @@ export class HomeComponent implements OnInit {
           return groups;
         }, {});
 
-        // Get unique dates for x-axis
         const dates = [...new Set(this.summary.compare_trends.map(item => item.Date))];
 
-        // Create datasets for each product
         const datasets = Object.entries(productGroups).map(([product, data], index) => ({
           label: product,
           data: data.map(item => item["Total Sales"]),
@@ -305,7 +335,6 @@ export class HomeComponent implements OnInit {
           }
         });
       } else {
-        // Regular chart rendering for other report types
         let labels: string[] = [];
         let data: number[] = [];
         let title = '';
@@ -313,9 +342,10 @@ export class HomeComponent implements OnInit {
         switch (this.selectedReportType) {
           case 'daily':
             if (this.summary.daily_sales) {
-              labels = this.summary.daily_sales.map(sale => sale.Date);
-              data = this.summary.daily_sales.map(sale => sale["Total Sales"]);
-              title = 'Daily Sales';
+              const filteredData = this.summary.daily_sales.filter(sale => sale.Date.startsWith(this.selectedMonth));
+              labels = filteredData.map(sale => sale.Date);
+              data = filteredData.map(sale => sale["Total Sales"]);
+              title = `Daily Sales ${this.selectedMonth ? `- ${this.selectedMonth}` : ''}`;
             }
             break;
           case 'monthly':
@@ -362,7 +392,6 @@ export class HomeComponent implements OnInit {
       }
     }
 
-    // Render forecast chart
     if (this.summary.forecast && this.forecastChartRef) {
       const ctx = this.forecastChartRef.nativeElement.getContext('2d');
       this.forecastChart = new Chart(ctx, {
@@ -392,7 +421,6 @@ export class HomeComponent implements OnInit {
     }
   }
 
-  // Helper function to generate colors for different products
   private getColor(index: number, alpha: number = 1): string {
     const colors = [
       `rgba(255, 99, 132, ${alpha})`,   // Red
