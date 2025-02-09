@@ -139,6 +139,16 @@ input[type="file"] {
   transition: all 0.3s ease;
 }
 
+.filter-btn1 {
+  padding: 0.5rem 1.5rem;
+  border: 2px solid #6c5ce7;
+  border-radius: 8px;
+  background: transparent;
+  color: #6c5ce7;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
 .dark-mode .filter-btn {
   border-color: #8f7ff7;
   color: #8f7ff7;
@@ -149,11 +159,21 @@ input[type="file"] {
   color: white;
 }
 
+.filter-btn1.active {
+  background: #6c5ce7;
+  color: white;
+}
+
 .dark-mode .filter-btn.active {
   background: #8f7ff7;
 }
 
 .filter-btn:hover {
+  background: #6c5ce7;
+  color: white;
+}
+
+.filter-btn1:hover {
   background: #6c5ce7;
   color: white;
 }

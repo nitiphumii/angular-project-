@@ -16,6 +16,7 @@ interface DashboardSummary {
   monthly_sales?: Array<{ Date: string; "Total Sales": number; "Growth Rate (%)": number; "Quantity Sold": number }>;
   yearly_sales?: Array<{ Date: string; "Total Sales": number; "Growth Rate (%)": number }>;
   top_products?: Array<{ Product: string; "Total Sales": number }>;
+  compare_trends?: Array<{ Date: string; Product: string; "Total Sales": number; "Quantity Sold": number}>;
   forecast?: { sales: number[]; dates: string[] };
 }
 
@@ -26,7 +27,7 @@ interface FileItem {
   products?: Array<{ Product: string; "Total Sales": number }>;
 }
 
-type ReportType = 'daily' | 'monthly' | 'yearly' | 'top_products';
+type ReportType = 'daily' | 'monthly' | 'yearly' | 'top_products' | 'compare_trends';
 
 @Component({
   selector: 'app-home',
@@ -38,10 +39,12 @@ type ReportType = 'daily' | 'monthly' | 'yearly' | 'top_products';
 export class HomeComponent implements OnInit {
   isDarkMode = false;
   isLoading = false;
+  isCompare = false;
   userFiles: FileItem[] = [];
   summary: DashboardSummary = {};
   selectedFile: string = '';
   selectedReportType: ReportType = 'daily';
+  selectedReportType1: ReportType = 'yearly';
   selectedProduct: string = '';
   availableProducts: Array<{ Product: string; "Total Sales": number }> = [];
 
@@ -98,7 +101,7 @@ export class HomeComponent implements OnInit {
 
   onFileSelect(fileId: string) {
     this.selectedFile = fileId;
-    this.selectedProduct = ''; // Reset product selection
+    this.selectedProduct = '';
     this.fetchInitialData();
   }
 
@@ -125,7 +128,6 @@ export class HomeComponent implements OnInit {
     ).subscribe({
       next: (response) => {
         if (response.top_products) {
-          // Store the products list for the selected file
           const selectedFileIndex = this.userFiles.findIndex(f => f.file_id === this.selectedFile);
           if (selectedFileIndex !== -1) {
             this.userFiles[selectedFileIndex].products = response.top_products;
@@ -133,7 +135,7 @@ export class HomeComponent implements OnInit {
             console.log("Product Data:", this.availableProducts);
           }
         }
-        this.fetchDashboardSummary(); // Fetch the regular dashboard data
+        this.fetchDashboardSummary();
       },
       error: (error) => {
         this.isLoading = false;
@@ -144,6 +146,18 @@ export class HomeComponent implements OnInit {
 
   setReportType(type: ReportType) {
     this.selectedReportType = type;
+    if(type == 'compare_trends'){
+      this.isCompare = true;
+    }else{
+      this.isCompare = false;
+    };
+    if (this.selectedFile) {
+      this.fetchDashboardSummary();
+    }
+  }
+
+  setReportType1(type: ReportType) {
+    this.selectedReportType1 = type;
     if (this.selectedFile) {
       this.fetchDashboardSummary();
     }
@@ -160,6 +174,7 @@ export class HomeComponent implements OnInit {
     let params = new HttpParams()
       .set('file_id', this.selectedFile)
       .set('report_type', this.selectedReportType)
+      .set('time_filter', this.selectedReportType1)
       .set('forecast_3', 'true');
 
     if (this.selectedProduct) {
@@ -226,55 +241,38 @@ export class HomeComponent implements OnInit {
     if (this.salesChart) this.salesChart.destroy();
     if (this.forecastChart) this.forecastChart.destroy();
 
-    console.log("Daily Data:", this.summary.daily_sales);
-    console.log("Yearly Data:", this.summary.yearly_sales);
-    console.log("Monthly Data:", this.summary.monthly_sales);
-
-    // Render sales chart based on report type
     if (this.salesChartRef) {
       const ctx = this.salesChartRef.nativeElement.getContext('2d');
-      let labels: string[] = [];
-      let data: number[] = [];
-      let title = '';
+      
+      if (this.selectedReportType === 'compare_trends' && this.summary.compare_trends) {
+        // Group data by product
+        const productGroups = this.summary.compare_trends.reduce((groups: { [key: string]: any[] }, item) => {
+          const product = item.Product;
+          if (!groups[product]) {
+            groups[product] = [];
+          }
+          groups[product].push(item);
+          return groups;
+        }, {});
 
-      switch (this.selectedReportType) {
-        case 'daily':
-          if (this.summary.daily_sales) {
-            labels = this.summary.daily_sales.map(sale => sale.Date);
-            data = this.summary.daily_sales.map(sale => sale["Total Sales"]);
-            data = this.summary.daily_sales.map(sale => sale["Quantity Sold"]);
-            title = 'Daily Sales';
-          }
-          break;
-        case 'monthly':
-          if (this.summary.monthly_sales) {
-            labels = this.summary.monthly_sales.map(sale => sale.Date);
-            data = this.summary.monthly_sales.map(sale => sale["Total Sales"]);
-            data = this.summary.monthly_sales.map(sale => sale["Quantity Sold"]);
-            title = 'Monthly Sales';
-          }
-          break;
-        case 'yearly':
-          if (this.summary.yearly_sales) {
-            labels = this.summary.yearly_sales.map(sale => sale.Date);
-            data = this.summary.yearly_sales.map(sale => sale["Total Sales"]);
-            title = 'Yearly Sales';
-          }
-          break;
-      }
+        // Get unique dates for x-axis
+        const dates = [...new Set(this.summary.compare_trends.map(item => item.Date))];
 
-      if (labels.length > 0 && data.length > 0) {
+        // Create datasets for each product
+        const datasets = Object.entries(productGroups).map(([product, data], index) => ({
+          label: product,
+          data: data.map(item => item["Total Sales"]),
+          borderColor: this.getColor(index),
+          backgroundColor: this.getColor(index, 0.2),
+          fill: false,
+          tension: 0.4
+        }));
+
         this.salesChart = new Chart(ctx, {
-          type: 'bar',
+          type: 'line',
           data: {
-            labels: labels,
-            datasets: [{
-              label: title,
-              data: data,
-              backgroundColor: 'rgba(54, 162, 235, 0.5)',
-              borderColor: 'rgba(54, 162, 235, 1)',
-              borderWidth: 1
-            }]
+            labels: dates,
+            datasets: datasets
           },
           options: {
             responsive: true,
@@ -282,11 +280,85 @@ export class HomeComponent implements OnInit {
             plugins: {
               title: {
                 display: true,
-                text: title
+                text: 'Product Sales Comparison'
+              },
+              legend: {
+                display: true,
+                position: 'top'
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: 'Total Sales'
+                }
+              },
+              x: {
+                title: {
+                  display: true,
+                  text: 'Date'
+                }
               }
             }
           }
         });
+      } else {
+        // Regular chart rendering for other report types
+        let labels: string[] = [];
+        let data: number[] = [];
+        let title = '';
+
+        switch (this.selectedReportType) {
+          case 'daily':
+            if (this.summary.daily_sales) {
+              labels = this.summary.daily_sales.map(sale => sale.Date);
+              data = this.summary.daily_sales.map(sale => sale["Total Sales"]);
+              title = 'Daily Sales';
+            }
+            break;
+          case 'monthly':
+            if (this.summary.monthly_sales) {
+              labels = this.summary.monthly_sales.map(sale => sale.Date);
+              data = this.summary.monthly_sales.map(sale => sale["Total Sales"]);
+              title = 'Monthly Sales';
+            }
+            break;
+          case 'yearly':
+            if (this.summary.yearly_sales) {
+              labels = this.summary.yearly_sales.map(sale => sale.Date);
+              data = this.summary.yearly_sales.map(sale => sale["Total Sales"]);
+              title = 'Yearly Sales';
+            }
+            break;
+        }
+
+        if (labels.length > 0 && data.length > 0) {
+          this.salesChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: labels,
+              datasets: [{
+                label: title,
+                data: data,
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                title: {
+                  display: true,
+                  text: title
+                }
+              }
+            }
+          });
+        }
       }
     }
 
@@ -318,6 +390,23 @@ export class HomeComponent implements OnInit {
         }
       });
     }
+  }
+
+  // Helper function to generate colors for different products
+  private getColor(index: number, alpha: number = 1): string {
+    const colors = [
+      `rgba(255, 99, 132, ${alpha})`,   // Red
+      `rgba(54, 162, 235, ${alpha})`,   // Blue
+      `rgba(255, 206, 86, ${alpha})`,   // Yellow
+      `rgba(75, 192, 192, ${alpha})`,   // Green
+      `rgba(153, 102, 255, ${alpha})`,  // Purple
+      `rgba(255, 159, 64, ${alpha})`,   // Orange
+      `rgba(199, 199, 199, ${alpha})`,  // Gray
+      `rgba(83, 102, 255, ${alpha})`,   // Indigo
+      `rgba(255, 99, 255, ${alpha})`,   // Pink
+      `rgba(99, 255, 132, ${alpha})`    // Mint
+    ];
+    return colors[index % colors.length];
   }
 
   private handleError(error: HttpErrorResponse) {
