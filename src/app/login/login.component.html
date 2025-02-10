@@ -36,4 +36,22 @@
     </form>
     <p class="switch-text">Don't have an account? <a routerLink="/register">Register</a></p>
   </div>
+
+  <!-- Error Popup -->
+  <div *ngIf="showError" class="error-popup" [style.animation]="isClosing ? 'slideOut 0.3s ease-in forwards' : ''">
+    <span class="material-symbols-outlined error-icon">error</span>
+    <span class="error-message">{{ errorMessage }}</span>
+    <button class="close-btn" (click)="closeError()">
+      <span class="material-symbols-outlined">close</span>
+    </button>
+  </div>
+
+  <!-- Success Popup -->
+  <div *ngIf="showSuccess" class="success-popup" [style.animation]="isSuccessClosing ? 'slideOut 0.3s ease-in forwards' : ''">
+    <span class="material-symbols-outlined success-icon">check_circle</span>
+    <span class="success-message">{{ successMessage }}</span>
+    <button class="close-btn" (click)="closeSuccess()">
+      <span class="material-symbols-outlined">close</span>
+    </button>
+  </div>
 </div>

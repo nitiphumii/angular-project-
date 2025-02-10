@@ -1,26 +1,26 @@
 <div class="container" [ngClass]="{ 'dark-mode': isDarkMode }">
   <nav class="navbar">
-    <div class="logo">Sales Dashboard</div>
+    <div class="logo">Sales Analytics</div>
     <div class="nav-links">
-      <a href="#" class="nav-link">หน้าแรก</a>
-      <a href="#" class="nav-link">เกี่ยวกับ</a>
-      <a href="#" class="nav-link">ติดต่อ</a>
+      <a href="#" class="nav-link">Dashboard</a>
+      <a href="#" class="nav-link">Payment</a>
+      <a href="#" class="nav-link">Profile</a>
       <a href="#" class="nav-link">Logout</a>
       <button class="theme-toggle" (click)="toggleDarkMode()">
         <span class="material-symbols-outlined">
-          {{ isDarkMode ? 'partly_cloudy_day' : 'partly_cloudy_night' }}
+          {{ isDarkMode ? 'light_mode' : 'dark_mode' }}
         </span>
       </button>
     </div>
   </nav>
 
   <div class="content">
-    <h1>Sales Dashboard</h1>
+    <h1>Sales Analytics Dashboard</h1>
 
     <div class="upload-section">
       <label for="file-upload" class="upload-label">
         <span class="material-symbols-outlined">upload_file</span>
-        Upload Financial Data
+        Upload Sales Data
       </label>
       <input 
         type="file" 
@@ -33,22 +33,22 @@
 
     <div *ngIf="isLoading" class="loading">
       <span class="material-symbols-outlined spinning">sync</span>
-      Processing your file...
+      Processing your data...
     </div>
 
     <div class="controls-section">
       <div class="file-selection">
-        <label for="file-select">เลือกไฟล์ข้อมูล:</label>
+        <label for="file-select">Select Data File:</label>
         <select *ngIf="userFiles.length > 0" [(ngModel)]="selectedFile" (ngModelChange)="onFileSelect($event)" class="form-control">
-          <option value="">Select a file</option>
+          <option value="">Choose a file</option>
           <option *ngFor="let file of userFiles" [value]="file.file_id">
             {{ file.filename }}
           </option>
         </select>
       </div>
 
-      <div class="product-selection" *ngIf="availableProducts.length > 0">
-        <label for="product-select">เลือกสินค้า:</label>
+      <div class="product-selection" *ngIf="availableProducts.length > 0 && selectedFile !== '' ">
+        <label for="product-select">Select Product:</label>
         <select [(ngModel)]="selectedProduct" (change)="fetchDashboardSummary()" class="form-control">
           <option value="">All Products</option>
           <option *ngFor="let product of availableProducts" [value]="product.Product">
@@ -57,11 +57,10 @@
         </select>
       </div>
 
-      <!-- Month selection for daily view -->
-      <div class="month-selection" *ngIf="selectedReportType === 'daily'">
-        <label for="month-select">เลือกเดือน:</label>
+      <div class="month-selection" *ngIf="selectedReportType === 'daily' || selectedReportType1 === 'daily'">
+        <label for="month-select">Select Month:</label>
         <select [(ngModel)]="selectedMonth" (change)="onMonthSelect(selectedMonth)" class="form-control">
-          <option value="" disabled selected>-- กรุณาเลือกเดือน --</option>
+          <option value="" disabled selected>Select a month</option>
           <option *ngFor="let month of availableMonths" [value]="month">
             {{ month }}
           </option>
@@ -91,7 +90,7 @@
           [class.active]="selectedReportType === 'compare_trends'"
           (click)="setReportType('compare_trends')"
           class="filter-btn">
-          Compare Trends
+          Compare
         </button>
         <button 
           [class.active]="selectedReportType === 'forecast'"
@@ -100,21 +99,6 @@
           Forecast
         </button>
       </div>
-
-      <!-- Add forecast periods selector -->
-      <div class="forecast-controls" *ngIf="selectedReportType === 'forecast'">
-        <label for="forecast-periods">Forecast Periods:</label>
-        <select 
-          id="forecast-periods"
-          [(ngModel)]="selectedForecastPeriods"
-          (change)="fetchDashboardSummary()"
-          class="form-control">
-          <option *ngFor="let period of forecastPeriods" [value]="period">
-            {{ period }} {{ period === 3 ? 'Period' : 'Periods' }}
-          </option>
-        </select>
-      </div>
-
 
       <div class="report-type-filters" *ngIf="isCompare">
         <button 
@@ -136,23 +120,35 @@
           Yearly
         </button>
       </div>
-
-      <button class="btn-load-dashboard" (click)="fetchDashboardSummary()" [disabled]="!selectedFile">
-        <span class="material-symbols-outlined">analytics</span>
-        โหลดข้อมูล Dashboard
-      </button>
+      
+      <div class="forecast-controls" *ngIf="selectedReportType === 'forecast'">
+        <label for="forecast-periods">Forecast Range:</label>
+        <select 
+          id="forecast-periods"
+          [(ngModel)]="selectedForecastPeriods"
+          (change)="fetchDashboardSummary()"
+          class="form-control">
+          <option *ngFor="let period of forecastPeriods" [value]="period">
+            {{ period }} Periods
+          </option>
+        </select>
+      </div>
     </div>
 
+    <div>{{ this.ai_summary }}</div>
     <div *ngIf="summary" class="chart-container">
       <canvas #salesChart></canvas>
     </div>
 
-    <!-- <div class="chart-container" *ngIf="selectedReportType === 'forecast' && summary.forecast">
-      <canvas #forecastChart></canvas>
-    </div> -->
+    <button 
+      (click)="Gensummary()"
+      class="filter-btn">
+      AI
+    </button>
+    
 
     <div *ngIf="summary.top_products" class="top-products">
-      <h2>Top Products</h2>
+      <h2>Top Performing Products</h2>
       <div class="products-grid">
         <div *ngFor="let product of summary.top_products" class="product-card">
           <h3>{{ product.Product }}</h3>

@@ -12,9 +12,10 @@ import { environment } from '../../environments/environment';
 Chart.register(...registerables);
 
 interface DashboardSummary {
+  ai_summary?: string;
   daily_sales?: Array<{ Date: string; "Total Sales": number; "Quantity Sold": number }>;
   monthly_sales?: Array<{ Date: string; "Total Sales": number; "Growth Rate (%)": number; "Quantity Sold": number }>;
-  yearly_sales?: Array<{ Date: string; "Total Sales": number; "Growth Rate (%)": number }>;
+  yearly_sales?: Array<{ Date: string; "Total Sales": number; "Growth Rate (%)": number; "Quantity Sold": number }>;
   top_products?: Array<{ Product: string; "Total Sales": number }>;
   compare_trends?: Array<{ Date: string; Product: string; "Total Sales": number; "Quantity Sold": number}>;
   forecast?: Array<{ Date: string; "Forecasted Sales": number }>;
@@ -40,6 +41,8 @@ export class HomeComponent implements OnInit {
   isDarkMode = false;
   isLoading = false;
   isCompare = false;
+  isForecast_quantity = false;
+  isAi_summary = false;
   userFiles: FileItem[] = [];
   summary: DashboardSummary = {};
   selectedFile: string = '';
@@ -51,6 +54,7 @@ export class HomeComponent implements OnInit {
   availableMonths: string[] = [];
   selectedForecastPeriods: number = 3;
   forecastPeriods: number[] = Array.from({length: 10}, (_, i) => i + 2);
+  ai_summary: string = '';
 
   @ViewChild('salesChart') salesChartRef!: ElementRef;
   @ViewChild('forecastChart') forecastChartRef!: ElementRef;
@@ -180,10 +184,14 @@ export class HomeComponent implements OnInit {
       this.isCompare = true;
     } else {
       this.isCompare = false;
+      this.setReportType1('monthly')
     }
     if (this.selectedFile) {
       this.fetchDashboardSummary();
     }
+    this.isForecast_quantity = false;
+    this.isAi_summary = false;
+    this.ai_summary = '';
   }
 
   setReportType1(type: ReportType) {
@@ -191,7 +199,16 @@ export class HomeComponent implements OnInit {
     if (this.selectedFile) {
       this.fetchDashboardSummary();
     }
+    this.isForecast_quantity = false;
+    this.isAi_summary = false;
+    this.ai_summary = '';
   }
+
+Gensummary() {
+  this.isForecast_quantity = true;
+  this.isAi_summary = true;
+  this.fetchDashboardSummary();
+}
 
   fetchDashboardSummary() {
     if (!this.selectedFile) {
@@ -204,7 +221,9 @@ export class HomeComponent implements OnInit {
     let params = new HttpParams()
       .set('file_id', this.selectedFile)
       .set('report_type', this.selectedReportType)
-      .set('time_filter', this.selectedReportType1);
+      .set('time_filter', this.selectedReportType1)
+      .set('forecast_quantity', this.isForecast_quantity)
+      .set('ai_summary', this.isAi_summary);
 
     // Add forecast periods parameter when in forecast mode
     if (this.selectedReportType === 'forecast') {
@@ -237,6 +256,9 @@ export class HomeComponent implements OnInit {
       next: (response) => {
         console.log("API Response:", response);
         this.summary = response;
+        if (this.summary.ai_summary) {
+          this.ai_summary = this.summary.ai_summary;
+        }
         this.initializeMonths();
         this.isLoading = false;
         this.renderCharts();
@@ -284,18 +306,25 @@ export class HomeComponent implements OnInit {
 
     if (this.salesChartRef) {
       const ctx = this.salesChartRef.nativeElement.getContext('2d');
+      let labels: string[] = [];
+      let data: any[] = [];
+      let title = '';
       
       if (this.selectedReportType === 'compare_trends' && this.summary.compare_trends) {
-        const productGroups = this.summary.compare_trends.reduce((groups: { [key: string]: any[] }, item) => {
-          const product = item.Product;
-          if (!groups[product]) {
-            groups[product] = [];
-          }
+        let filteredTrends = this.summary.compare_trends;
+
+        if (this.selectedReportType1 === 'daily' && this.selectedMonth) {
+          filteredTrends = filteredTrends.filter(item => item.Date.startsWith(this.selectedMonth));
+        }
+
+        const productGroups = filteredTrends.reduce((groups: { [key: string]: any[] }, item) => {
+        const product = item.Product;
+        if (!groups[product]) groups[product] = [];
           groups[product].push(item);
           return groups;
         }, {});
 
-        const dates = [...new Set(this.summary.compare_trends.map(item => item.Date))];
+        const dates = [...new Set(filteredTrends.map(item => item.Date))];
 
         const datasets = Object.entries(productGroups).map(([product, data], index) => ({
           label: product,
@@ -303,7 +332,7 @@ export class HomeComponent implements OnInit {
           borderColor: this.getColor(index),
           backgroundColor: this.getColor(index, 0.2),
           fill: false,
-          tension: 0.4
+           tension: 0.4
         }));
 
         this.salesChart = new Chart(ctx, {
@@ -393,27 +422,34 @@ export class HomeComponent implements OnInit {
         let labels: string[] = [];
         let data: number[] = [];
         let title = '';
+        let quantityData: number[] = [];
+        let filteredData: any[] = [];
 
         switch (this.selectedReportType) {
           case 'daily':
             if (this.summary.daily_sales) {
-              const filteredData = this.summary.daily_sales.filter(sale => sale.Date.startsWith(this.selectedMonth));
+              filteredData = this.summary.daily_sales.filter(sale => sale.Date.startsWith(this.selectedMonth));
               labels = filteredData.map(sale => sale.Date);
               data = filteredData.map(sale => sale["Total Sales"]);
+              quantityData = filteredData.map(sale => sale["Quantity Sold"]);
               title = `Daily Sales ${this.selectedMonth ? `- ${this.selectedMonth}` : ''}`;
             }
             break;
           case 'monthly':
             if (this.summary.monthly_sales) {
+              filteredData = this.summary.monthly_sales;
               labels = this.summary.monthly_sales.map(sale => sale.Date);
               data = this.summary.monthly_sales.map(sale => sale["Total Sales"]);
+              quantityData = filteredData.map(sale => sale["Quantity Sold"]);
               title = 'Monthly Sales';
             }
             break;
           case 'yearly':
             if (this.summary.yearly_sales) {
+              filteredData = this.summary.yearly_sales;
               labels = this.summary.yearly_sales.map(sale => sale.Date);
               data = this.summary.yearly_sales.map(sale => sale["Total Sales"]);
+              quantityData = filteredData.map(sale => sale["Quantity Sold"]);
               title = 'Yearly Sales';
             }
             break;
@@ -439,6 +475,44 @@ export class HomeComponent implements OnInit {
                 title: {
                   display: true,
                   text: title
+                },
+                legend: {
+                  display: true
+                },
+                tooltip: {
+                  callbacks: {
+                    label: (tooltipItem) => {
+                      const datasets = tooltipItem.chart.data.datasets; 
+                      const index = tooltipItem.dataIndex;
+                      let totalSales = filteredData?.[index]?.["Total Sales"] ?? 0;
+                      let quantitySold = filteredData?.[index]?.["Quantity Sold"] ?? 0;
+
+                       if (this.selectedReportType === 'compare_trends') {
+        const product = datasets[tooltipItem.datasetIndex].label;
+        totalSales = datasets[tooltipItem.datasetIndex].data[index] ?? 0;
+        return [`${product}: ${totalSales.toLocaleString()}`];
+      } else {
+        totalSales = filteredData?.[index]?.["Total Sales"] ?? 0;
+        quantitySold = filteredData?.[index]?.["Quantity Sold"] ?? 0;
+              
+                      return [`Total Sales: ${totalSales.toLocaleString()}`, `Quantity Sold: ${quantitySold.toLocaleString()}`];}
+                    }
+                  }
+                }
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  title: {
+                    display: true,
+                    text: 'Total Sales'
+                  }
+                },
+                x: {
+                  title: {
+                    display: true,
+                    text: this.selectedReportType === 'daily' ? 'Date' : this.selectedReportType === 'monthly' ? 'Month' : 'Year'
+                  }
                 }
               }
             }
