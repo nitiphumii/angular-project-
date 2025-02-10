@@ -1,11 +1,11 @@
 <div class="container" [ngClass]="{ 'dark-mode': isDarkMode }">
   <nav class="navbar">
-    <div class="logo">Bolt Tech</div>
+    <div class="logo">Sales Dashboard</div>
     <div class="nav-links">
       <a href="#" class="nav-link">หน้าแรก</a>
       <a href="#" class="nav-link">เกี่ยวกับ</a>
-      <a href="#" class="nav-link">ผลงาน</a>
       <a href="#" class="nav-link">ติดต่อ</a>
+      <a href="#" class="nav-link">Logout</a>
       <button class="theme-toggle" (click)="toggleDarkMode()">
         <span class="material-symbols-outlined">
           {{ isDarkMode ? 'partly_cloudy_day' : 'partly_cloudy_night' }}
@@ -15,7 +15,7 @@
   </nav>
 
   <div class="content">
-    <h1>Financial Dashboard</h1>
+    <h1>Sales Dashboard</h1>
 
     <div class="upload-section">
       <label for="file-upload" class="upload-label">
