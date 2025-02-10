@@ -50,7 +50,7 @@ export class HomeComponent implements OnInit {
   availableProducts: Array<{ Product: string; "Total Sales": number }> = [];
   availableMonths: string[] = [];
   selectedForecastPeriods: number = 3;
-  forecastPeriods: number[] = Array.from({length: 10}, (_, i) => i + 3);
+  forecastPeriods: number[] = Array.from({length: 10}, (_, i) => i + 2);
 
   @ViewChild('salesChart') salesChartRef!: ElementRef;
   @ViewChild('forecastChart') forecastChartRef!: ElementRef;
