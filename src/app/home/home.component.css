@@ -619,3 +619,11 @@ select.form-control:focus {
   color: #8f7ff7;
   border-color: #334155;
 }
+
+.date-picker-wrapper{
+  width: 100%;
+
+  input{
+    color: black;
+  }
+}
