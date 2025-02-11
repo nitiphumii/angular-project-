@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ThemeService } from '../services/theme.service';
 import { AuthService } from '../services/auth.service';
@@ -9,7 +9,16 @@ import { catchError } from 'rxjs/operators';
 import { throwError } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { environment } from '../../environments/environment';
+import { PaymentDialogComponent } from '../payment-dialog/payment-dialog.component';
+import flatpickr from 'flatpickr';
+import 'flatpickr/dist/flatpickr.css';
+
 Chart.register(...registerables);
+
+interface UserInfo {
+  username: string;
+  points: number;
+}
 
 interface DashboardSummary {
   ai_summary?: string;
@@ -33,11 +42,17 @@ type ReportType = 'daily' | 'monthly' | 'yearly' | 'top_products' | 'compare_tre
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, PaymentDialogComponent],
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.css'],
 })
-export class HomeComponent implements OnInit {
+export class HomeComponent implements OnInit, AfterViewInit {
+  @ViewChild('dateRangePicker') dateRangePickerEl!: ElementRef;
+  private flatpickrInstance: any;
+  minDate: Date | null = null;
+  maxDate: Date | null = null;
+  
+  userPoints: number = 0;
   isDarkMode = false;
   isLoading = false;
   isCompare = false;
@@ -54,7 +69,9 @@ export class HomeComponent implements OnInit {
   availableMonths: string[] = [];
   selectedForecastPeriods: number = 3;
   forecastPeriods: number[] = Array.from({length: 10}, (_, i) => i + 2);
+  showPaymentDialog = false;
   ai_summary: string = '';
+  pollingInterval: any; 
 
   @ViewChild('salesChart') salesChartRef!: ElementRef;
   @ViewChild('forecastChart') forecastChartRef!: ElementRef;
@@ -75,32 +92,112 @@ export class HomeComponent implements OnInit {
       this.router.navigate(['/login']);
       return;
     }
+    this.getUserInfo();
     this.getFiles();
     this.initializeMonths();
   }
 
-  initializeMonths() {
+    ngAfterViewInit() {
+    this.initializeDatePicker();
+  }
+
+  initializeDatePicker() {
+    if (this.dateRangePickerEl) {
+      this.flatpickrInstance = flatpickr(this.dateRangePickerEl.nativeElement, {
+        mode: 'range',
+        dateFormat: 'Y-m-d',
+        minDate: this.minDate ?? new Date(),
+        maxDate: this.maxDate ?? new Date(),
+        // defaultDate: [new Date(), new Date()],
+        defaultDate: [new Date(), new Date()].filter(Boolean),
+        // theme: this.isDarkMode ? 'dark' : 'light',
+        onChange: (selectedDates) => {
+          if (selectedDates.length === 2) {
+            const [start, end] = selectedDates;
+            const startDate = this.formatDate(start);
+            const endDate = this.formatDate(end);
+            this.selectedMonth = `${startDate}:${endDate}`;
+            this.fetchDashboardSummary();
+          }
+        }
+      });
+    }
+  }
+
+     formatDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  getUserInfo() {
+    this.isLoading = false;
+  const headers = new HttpHeaders({
+    'Authorization': `Bearer ${this.authService.getToken()}`,
+    'Accept': 'application/json',
+    'ngrok-skip-browser-warning': 'true'
+  });
+
+  this.http.get<{ user_info: { points: number; username: string } }>(
+    `${environment.BASE_URL}/user_info/`,
+    { headers }
+  ).pipe(
+    catchError(this.handleError.bind(this))
+  ).subscribe({
+    next: (response) => {
+      console.log("User Info API Response:", response); 
+      if (this.userPoints !== response.user_info.points) {
+        this.userPoints = response.user_info.points;
+        this.stopPolling();
+      }
+    },
+    error: (error) => {
+      console.error('Failed to fetch user info:', error);
+    }
+  });
+}
+
+  // initializeMonths() {
+  //   if (!this.summary || !this.summary.daily_sales) {
+  //     console.warn("No daily sales data available.");
+  //     return;
+  //   }
+  //   const monthSet = new Set<string>();
+
+  //   this.summary.daily_sales.forEach(sale => {
+  //     const date = sale.Date;
+  //     const yearMonth = date.substring(0, 7);
+  //     monthSet.add(yearMonth);
+  //   });
+
+  //   this.availableMonths = Array.from(monthSet).sort();
+
+  //   const currentDate = new Date();
+  //   this.selectedMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+  //   this.selectedMonth = "";
+  // }
+initializeMonths() {
     if (!this.summary || !this.summary.daily_sales) {
       console.warn("No daily sales data available.");
       return;
     }
-    const monthSet = new Set<string>();
 
-    this.summary.daily_sales.forEach(sale => {
-      const date = sale.Date;
-      const yearMonth = date.substring(0, 7);
-      monthSet.add(yearMonth);
-    });
+    const dates = this.summary.daily_sales.map(sale => new Date(sale.Date));
+    this.minDate = new Date(Math.min(...dates.map(date => date.getTime())));
+    this.maxDate = new Date(Math.max(...dates.map(date => date.getTime())));
 
-    this.availableMonths = Array.from(monthSet).sort();
-
-    const currentDate = new Date();
-    this.selectedMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
-    this.selectedMonth = "";
+    if (this.flatpickrInstance) {
+      this.flatpickrInstance.set('minDate', this.minDate);
+      this.flatpickrInstance.set('maxDate', this.maxDate);
+    }
   }
 
   toggleDarkMode() {
     this.themeService.toggleDarkMode();
+    if (this.flatpickrInstance) {
+      this.flatpickrInstance.set('theme', this.isDarkMode ? 'dark' : 'light');
+    }
   }
 
   getFiles() {
@@ -118,8 +215,13 @@ export class HomeComponent implements OnInit {
       catchError(this.handleError.bind(this))
     ).subscribe({
       next: (response) => {
+        // this.userFiles = response.files;
+        if (this.userFiles !== response.files) {
         this.userFiles = response.files;
+        this.startPolling();
+      }
         this.isLoading = false;
+        this.startPolling();
       },
       error: (error) => {
         this.isLoading = false;
@@ -179,6 +281,9 @@ export class HomeComponent implements OnInit {
   }
 
   setReportType(type: ReportType) {
+    this.isForecast_quantity = false;
+    this.isAi_summary = false;
+    this.ai_summary = '';
     this.selectedReportType = type;
     if(type === 'compare_trends'){
       this.isCompare = true;
@@ -189,26 +294,23 @@ export class HomeComponent implements OnInit {
     if (this.selectedFile) {
       this.fetchDashboardSummary();
     }
-    this.isForecast_quantity = false;
-    this.isAi_summary = false;
-    this.ai_summary = '';
   }
 
   setReportType1(type: ReportType) {
+    this.isForecast_quantity = false;
+    this.isAi_summary = false;
+    this.ai_summary = '';
     this.selectedReportType1 = type;
     if (this.selectedFile) {
       this.fetchDashboardSummary();
     }
-    this.isForecast_quantity = false;
-    this.isAi_summary = false;
-    this.ai_summary = '';
   }
 
-Gensummary() {
-  this.isForecast_quantity = true;
-  this.isAi_summary = true;
-  this.fetchDashboardSummary();
-}
+  Gensummary() {
+    this.isForecast_quantity = true;
+    this.isAi_summary = true;
+    this.fetchDashboardSummary();
+  }
 
   fetchDashboardSummary() {
     if (!this.selectedFile) {
@@ -254,13 +356,13 @@ Gensummary() {
       catchError(this.handleError.bind(this))
     ).subscribe({
       next: (response) => {
+        this.isLoading = false;
         console.log("API Response:", response);
         this.summary = response;
         if (this.summary.ai_summary) {
           this.ai_summary = this.summary.ai_summary;
         }
         this.initializeMonths();
-        this.isLoading = false;
         this.renderCharts();
       },
       error: (error) => {
@@ -318,8 +420,8 @@ Gensummary() {
         }
 
         const productGroups = filteredTrends.reduce((groups: { [key: string]: any[] }, item) => {
-        const product = item.Product;
-        if (!groups[product]) groups[product] = [];
+          const product = item.Product;
+          if (!groups[product]) groups[product] = [];
           groups[product].push(item);
           return groups;
         }, {});
@@ -332,7 +434,7 @@ Gensummary() {
           borderColor: this.getColor(index),
           backgroundColor: this.getColor(index, 0.2),
           fill: false,
-           tension: 0.4
+          tension: 0.4
         }));
 
         this.salesChart = new Chart(ctx, {
@@ -549,5 +651,35 @@ Gensummary() {
       return throwError(() => new Error('Network error occurred'));
     }
     return throwError(() => new Error(error.error?.message || 'An unexpected error occurred'));
+  }
+
+  openPaymentDialog() {
+    this.showPaymentDialog = true;
+    this.isLoading = false;
+    this.getUserInfo();
+    this.startPolling();
+  }
+
+  closePaymentDialog() {
+    this.showPaymentDialog = false;
+    this.isLoading = false;
+    this.getUserInfo();
+  }
+
+  startPolling() {
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+    }
+
+    this.pollingInterval = setInterval(() => {
+      this.getUserInfo();
+    }, 3000);
+  }
+
+  stopPolling() {
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+      this.pollingInterval = null;
+    }
   }
 }
