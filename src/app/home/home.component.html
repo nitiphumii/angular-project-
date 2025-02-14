@@ -1,6 +1,6 @@
 <div class="container" [ngClass]="{ 'dark-mode': isDarkMode }">
   <nav class="navbar">
-    <div class="logo">Sales Analytics</div>
+    <div class="logo">AI-Driven Sales Forecasting</div>
     <div class="nav-links">
       <a href="#" class="nav-link">Dashboard</a>
       <span class="nav-link" (click)="openPaymentDialog()">Payment</span>
@@ -71,27 +71,17 @@
         </select>
       </div>
 
-      <!-- <div class="month-selection" *ngIf="selectedReportType === 'daily' || selectedReportType1 === 'daily'">
-        <label for="month-select">Select Month:</label>
-        <select [(ngModel)]="selectedMonth" (change)="onMonthSelect(selectedMonth)" class="form-control">
-          <option value="" disabled selected>Select a month</option>
-          <option *ngFor="let month of availableMonths" [value]="month">
-            {{ month }}
-          </option>
-        </select>
-      </div> -->
-
       <div class="month-selection" *ngIf="selectedReportType === 'daily' || selectedReportType1 === 'daily'">
-  <label for="date-range">Select Date Range:</label>
-  <div class="date-picker-wrapper">
-    <input
-      type="text"
-      #dateRangePicker
-      class="date-range-input"
-      placeholder="Select date range"
-      readonly>
-  </div>
-</div>
+        <label for="date-range">Select Date Range:</label>
+        <div class="date-picker-wrapper">
+          <input
+            type="text"
+            #dateRangePicker
+            class="date-range-input"
+            placeholder="Select date range"
+            readonly>
+        </div>
+      </div>
 
       <div class="report-type-filters">
         <button 
@@ -162,7 +152,23 @@
     </div>
 
     <div *ngIf="ai_summary" class="ai-summary">
-      <div class="ai-summary-content">{{ ai_summary }}</div>
+      <div class="ai-summary-content">
+        {{ ai_summary }}
+        <button class="ask-btn" (click)="showChatDialog = !showChatDialog">
+          Additional questions
+        </button>
+        <div *ngIf="showChatDialog" class="chat-dialog">
+          <div class="chat-input">
+            <input 
+              type="text" 
+              [(ngModel)]="newQuery" 
+              placeholder="Ask a question about the analysis..."
+              (keyup.enter)="sendQuery()"
+            >
+            <button (click)="sendQuery()" [disabled]="!newQuery.trim()">Send</button>
+          </div>
+        </div>
+      </div>
     </div>
     
     <div *ngIf="summary" class="chart-container">

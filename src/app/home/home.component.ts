@@ -22,6 +22,7 @@ interface UserInfo {
 
 interface DashboardSummary {
   ai_summary?: string;
+  updated_context?: string;
   daily_sales?: Array<{ Date: string; "Total Sales": number; "Quantity Sold": number }>;
   monthly_sales?: Array<{ Date: string; "Total Sales": number; "Growth Rate (%)": number; "Quantity Sold": number }>;
   yearly_sales?: Array<{ Date: string; "Total Sales": number; "Growth Rate (%)": number; "Quantity Sold": number }>;
@@ -68,10 +69,16 @@ export class HomeComponent implements OnInit, AfterViewInit {
   availableProducts: Array<{ Product: string; "Total Sales": number }> = [];
   availableMonths: string[] = [];
   selectedForecastPeriods: number = 3;
-  forecastPeriods: number[] = Array.from({length: 10}, (_, i) => i + 2);
+  forecastPeriods: number[] = Array.from({length: 11}, (_, i) => i + 2);
   showPaymentDialog = false;
   ai_summary: string = '';
-  pollingInterval: any; 
+  updated_context: string = '';
+  pollingInterval: any;
+  
+  // New chat-related properties
+  showChatDialog: boolean = false;
+  newQuery: string = '';
+  previousSummary: string = '';
 
   @ViewChild('salesChart') salesChartRef!: ElementRef;
   @ViewChild('forecastChart') forecastChartRef!: ElementRef;
@@ -101,6 +108,42 @@ export class HomeComponent implements OnInit, AfterViewInit {
     this.initializeDatePicker();
   }
 
+  sendQuery() {
+    if (!this.newQuery.trim()) return;
+
+    this.isLoading = true;
+    const headers = new HttpHeaders({
+      'Authorization': `Bearer ${this.authService.getToken()}`,
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true'
+    });
+
+  const params = new HttpParams()
+    .set('previous_summary', this.updated_context)
+    .set('new_query', this.newQuery);
+
+    this.http.get<{ new_answer: string; updated_context: string }>(
+      `${environment.BASE_URL}/dashboard/continue/`,
+      { params, headers }
+    ).pipe(
+      catchError(this.handleError.bind(this))
+    ).subscribe({
+      next: (response) => {
+        this.ai_summary = response.new_answer;
+        if (response.updated_context) {
+          this.summary.updated_context = response.updated_context;
+        }
+        this.isLoading = false;
+        this.newQuery = ''; // Clear the input after sending
+      },
+      error: (error) => {
+        this.isLoading = false;
+        console.error('Failed to send query:', error);
+      }
+    });
+  }
+
   initializeDatePicker() {
     if (this.dateRangePickerEl) {
       this.flatpickrInstance = flatpickr(this.dateRangePickerEl.nativeElement, {
@@ -111,10 +154,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
         onChange: (selectedDates) => {
           if (selectedDates.length === 2) {
             const [start, end] = selectedDates;
-            // const startDate = this.formatDate(start);
-            // const endDate = this.formatDate(end);
             this.selectedMonth = `${this.formatDate(start)}:${this.formatDate(end)}`;
-            // this.selectedMonth = `${startDate}:${endDate}`;
             this.renderCharts();
           }
         }
@@ -170,12 +210,11 @@ export class HomeComponent implements OnInit, AfterViewInit {
       this.flatpickrInstance.set('minDate', this.minDate);
       this.flatpickrInstance.set('maxDate', this.maxDate);
       
-      // Set default date range to show all data
       this.flatpickrInstance.setDate([this.minDate, this.maxDate]);
       this.selectedMonth = `${this.formatDate(this.minDate)}:${this.formatDate(this.maxDate)}`;
-    }else {
-        console.error("flatpickrInstance is undefined. Initializing DatePicker again.");
-        this.initializeDatePicker();  // ✅ ถ้ายังไม่มี instance ให้สร้างใหม่
+    } else {
+      console.error("flatpickrInstance is undefined. Initializing DatePicker again.");
+      this.initializeDatePicker();
     }
   }
 
@@ -270,9 +309,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
     this.isAi_summary = false;
     this.ai_summary = '';
     this.selectedReportType = type;
-    // if (type === 'daily') {
-        this.resetDatePicker(); // ✅ รีเซ็ต DatePicker
-    // }
+    this.resetDatePicker();
     if(type === 'compare_trends'){
       this.isCompare = true;
     } else {
@@ -284,12 +321,12 @@ export class HomeComponent implements OnInit, AfterViewInit {
     }
   }
 
-resetDatePicker() {
+  resetDatePicker() {
     if (this.flatpickrInstance) {
-        this.flatpickrInstance.destroy(); // ✅ ลบ DatePicker เก่าทิ้ง
+      this.flatpickrInstance.destroy();
     }
-    this.initializeDatePicker(); // ✅ สร้างใหม่
-}
+    this.initializeDatePicker();
+  }
 
   setReportType1(type: ReportType) {
     this.isForecast_quantity = false;
@@ -356,6 +393,9 @@ resetDatePicker() {
         if (this.summary.ai_summary) {
           this.ai_summary = this.summary.ai_summary;
         }
+        if (response.updated_context && response.updated_context.trim() !== "" && this.updated_context.trim() === "") {
+            this.updated_context = response.updated_context;
+          }
         this.initializeDatePicker();
         this.initializeMonths();
         this.renderCharts();

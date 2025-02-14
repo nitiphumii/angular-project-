@@ -1,3 +1,83 @@
+/* Add these styles to the existing CSS file */
+
+.ask-btn {
+  margin-top: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: #6c5ce7;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.dark-mode .ask-btn {
+  background: #8f7ff7;
+}
+
+.ask-btn:hover {
+  background: #5a4bd1;
+  transform: translateY(-2px);
+}
+
+.chat-dialog {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.dark-mode .chat-dialog {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+.chat-input {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.chat-input input {
+  flex: 1;
+  padding: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: white;
+  color: #1e293b;
+}
+
+.dark-mode .chat-input input {
+  background: #1e293b;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+.chat-input button {
+  padding: 0.75rem 1.5rem;
+  background: #6c5ce7;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.dark-mode .chat-input button {
+  background: #8f7ff7;
+}
+
+.chat-input button:hover {
+  background: #5a4bd1;
+}
+
+.chat-input button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 .container {
   min-height: 100vh;
   background: #f8fafc;

@@ -1,4 +1,4 @@
 export const environment = {
   production: false,
-  BASE_URL: 'https://8450-2403-6200-8830-cba1-7899-fa14-1e3e-fd3b.ngrok-free.app' // 🌍 เปลี่ยนได้ง่าย
+  BASE_URL: 'https://e1dd-2403-6200-8830-59bb-bd1a-4be5-cba6-2744.ngrok-free.app' // 🌍 เปลี่ยนได้ง่าย
 };
